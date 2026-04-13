@@ -18,7 +18,9 @@ public record RoomView(
     String clue,
     String maskedAnswer,
     String usedLetters,
-    Instant lastTurnAt
+    Instant lastTurnAt,
+    Boolean spinRequired,
+    Integer currentSpinScore
 ) {
 }
 

@@ -25,7 +25,6 @@ export interface GameOutboundMessage {
     nextPlayerId?: string
     timeoutSeconds?: number
     spinScore?: number
-    actorNickname?: string
     reason?: string
     currentRound?: number
     totalRounds?: number

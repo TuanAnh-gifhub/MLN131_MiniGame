@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
-import { EventFeed } from '../components/EventFeed'
 import { PlayerList } from '../components/PlayerList'
 import { useRealtimeRoom } from '../hooks/useRealtimeRoom'
 import { useRoomPolling } from '../hooks/useRoomPolling'
@@ -20,14 +19,12 @@ export function WaitingRoomPage() {
   const setRoom = useRoomStore((s) => s.setRoom)
   const setError = useRoomStore((s) => s.setError)
   const error = useRoomStore((s) => s.error)
-  const feed = useGameStore((s) => s.feed)
   const isConnected = useGameStore((s) => s.isConnected)
   const nickname = useSessionStore((s) => s.nickname)
   const isHost = useSessionStore((s) => s.isHost)
   const playerId = useSessionStore((s) => s.playerId)
   const isAdminObserver = isHost && !playerId
   const canStart = (room?.players.length ?? 0) >= 2
-  const displayName = nickname.trim() || room?.players.find((player) => player.id === playerId)?.nickname || 'Chưa xác định'
 
   useRealtimeRoom(roomCode)
   useRoomPolling(roomCode, true)
@@ -76,11 +73,11 @@ export function WaitingRoomPage() {
       role={isAdminObserver ? 'Quản trị' : isHost ? 'Chủ phòng' : 'Người chơi'}
       connected={isConnected}
     >
-      <div className={`grid gap-6 ${isAdminObserver ? 'md:grid-cols-[1fr_340px]' : ''}`}>
+      <div className="grid gap-6">
         <section className="rounded-2xl border border-slate-700 bg-slate-900/90 p-4">
           {!isAdminObserver ? (
             <p className="mb-3 rounded-lg border border-sky-400/30 bg-sky-500/10 p-2 text-sm text-sky-100">
-              Bạn đang tham gia với tên: <span className="font-semibold">{displayName}</span>
+              Bạn đang tham gia với tên: <span className="font-semibold">{nickname}</span>
             </p>
           ) : null}
 
@@ -107,8 +104,6 @@ export function WaitingRoomPage() {
             </p>
           )}
         </section>
-
-        {isAdminObserver ? <EventFeed items={feed} /> : null}
       </div>
     </AppShell>
   )

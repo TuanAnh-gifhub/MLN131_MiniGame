@@ -52,13 +52,14 @@ public class GameEngineService {
         List<Player> players = playerRepository.findByRoomCodeOrderByJoinedAtAsc(roomCode);
         Player actor = findActor(players, message.actor());
 
-        if (!actor.getId().equals(session.getCurrentTurnPlayerId())) {
-            throw new ApiException(HttpStatus.CONFLICT, "Not your turn");
-        }
-
         switch (message.eventType()) {
-            case GUESS_LETTER -> handleGuessLetterEvent(session, players, actor, message.payload());
             case GUESS_ANSWER -> handleGuessAnswer(session, players, actor, message.payload());
+            case GUESS_LETTER -> {
+                if (!actor.getId().equals(session.getCurrentTurnPlayerId())) {
+                    throw new ApiException(HttpStatus.CONFLICT, "Not your turn");
+                }
+                handleGuessLetterEvent(session, players, actor, message.payload());
+            }
             default -> throw new ApiException(HttpStatus.BAD_REQUEST, "Unsupported event for game engine");
         }
     }
@@ -149,7 +150,6 @@ public class GameEngineService {
         if (!normalizeAnswer(guess).equals(expected)) {
             actor.setScore(0);
             playerRepository.save(actor);
-            advanceTurn(session, players, now, "WRONG_ANSWER_RESET_SCORE");
             sendGameUpdate(session, "WRONG_ANSWER_RESET_SCORE", now, actor.getNickname());
             return;
         }
@@ -190,18 +190,19 @@ public class GameEngineService {
         Instant now = Instant.now();
 
         session.setCurrentSpinScore(roll);
+        sendGameUpdate(session, "SPIN_RESULT", now);
 
         if (roll == -1) {
             actor.setScore(0);
             playerRepository.save(actor);
-            sendGameUpdate(session, "BANKRUPT", now, actor.getNickname());
             advanceTurn(session, players, now, "BANKRUPT");
+            sendGameUpdate(session, "BANKRUPT", now, actor.getNickname());
             return;
         }
 
         if (roll == 0) {
-            sendGameUpdate(session, "LOSE_TURN", now, actor.getNickname());
             advanceTurn(session, players, now, "LOSE_TURN");
+            sendGameUpdate(session, "LOSE_TURN", now, actor.getNickname());
             return;
         }
 

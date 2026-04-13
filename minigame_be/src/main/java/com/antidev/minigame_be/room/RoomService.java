@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
@@ -47,23 +46,13 @@ public class RoomService {
 
     @Transactional
     public RoomView createRoomWithQuestions(AdminCreateRoomRequest request) {
-        String hostNickname = request != null ? request.hostNickname() : null;
-        String roomCode = request != null ? request.roomCode() : null;
-        List<AdminQuestionRequest> questions = request != null && request.questions() != null
-            ? request.questions()
-            : Collections.emptyList();
+        Room room = createRoomInternal(request.hostNickname(), request.roomCode(), false);
 
-        Room room = createRoomInternal(hostNickname, roomCode, false);
-
-        for (AdminQuestionRequest item : questions) {
-            if (item == null) {
-                continue;
-            }
-
+        for (AdminQuestionRequest item : request.questions()) {
             Question question = new Question();
-            question.setCategory(normalizeText(item.category(), "general", 100));
-            question.setClue(normalizeText(item.clue(), "...", 300));
-            question.setAnswer(normalizeText(item.answer(), "?", 200).toUpperCase(Locale.ROOT));
+            question.setCategory(item.category().trim());
+            question.setClue(item.clue().trim());
+            question.setAnswer(item.answer().trim().toUpperCase(Locale.ROOT));
             question.setRoomCode(room.getCode());
             question.setActive(true);
             questionRepository.save(question);
@@ -120,7 +109,9 @@ public class RoomService {
             latest != null ? latest.getCurrentClue() : null,
             latest != null ? latest.getMaskedAnswer() : null,
             latest != null ? latest.getUsedLetters() : null,
-            latest != null ? latest.getLastTurnAt() : null
+            latest != null ? latest.getLastTurnAt() : null,
+            latest != null ? latest.isSpinRequired() : null,
+            latest != null ? latest.getCurrentSpinScore() : null
         );
     }
 
@@ -172,18 +163,16 @@ public class RoomService {
     }
 
     private Room createRoomInternal(String hostNickname, String preferredCodeRaw, boolean createHostPlayer) {
-        String normalizedHostNickname = normalizeText(hostNickname, "admin", 30);
-
         Room room = new Room();
         room.setCode(resolveRoomCode(preferredCodeRaw));
-        room.setHostNickname(normalizedHostNickname);
+        room.setHostNickname(hostNickname.trim());
         room.setStatus(RoomStatus.WAITING);
         room = roomRepository.save(room);
 
         if (createHostPlayer) {
             Player host = new Player();
             host.setRoom(room);
-            host.setNickname(normalizedHostNickname);
+            host.setNickname(hostNickname.trim());
             host.setHost(true);
             host.setConnected(true);
             host.setJoinedAt(Instant.now());
@@ -198,9 +187,9 @@ public class RoomService {
             return generateRoomCode();
         }
 
-        String preferredCode = normalizeText(preferredCodeRaw, "", 12).toUpperCase(Locale.ROOT);
-        if (preferredCode.isBlank()) {
-            return generateRoomCode();
+        String preferredCode = preferredCodeRaw.trim().toUpperCase(Locale.ROOT);
+        if (!preferredCode.matches("[A-Z0-9]{4,12}")) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Room code must be 4-12 characters [A-Z0-9]");
         }
         if (roomRepository.findByCode(preferredCode).isPresent()) {
             throw new ApiException(HttpStatus.CONFLICT, "Room code already exists");
@@ -208,16 +197,6 @@ public class RoomService {
         return preferredCode;
     }
 
-    private String normalizeText(String value, String fallback, int maxLength) {
-        String normalized = value == null ? "" : value.trim();
-        if (normalized.isBlank()) {
-            normalized = fallback;
-        }
-        if (normalized.length() > maxLength) {
-            normalized = normalized.substring(0, maxLength);
-        }
-        return normalized;
-    }
 
     private String randomCode() {
         String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

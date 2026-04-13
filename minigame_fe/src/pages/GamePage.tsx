@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
-import { EventFeed } from '../components/EventFeed'
 import { PlayerList } from '../components/PlayerList'
 import { useRealtimeRoom } from '../hooks/useRealtimeRoom'
 import { useRoomPolling } from '../hooks/useRoomPolling'
@@ -38,15 +37,15 @@ export function GamePage() {
   const isHost = useSessionStore((s) => s.isHost)
 
   const [fullAnswer, setFullAnswer] = useState('')
+  const [showEventFeed, setShowEventFeed] = useState(true)
   const [remainingSeconds, setRemainingSeconds] = useState(TURN_TIMEOUT_SECONDS)
   const [wheelRotation, setWheelRotation] = useState(0)
   const [wheelSpinning, setWheelSpinning] = useState(false)
   const [wheelResult, setWheelResult] = useState<number | null>(null)
-  const [pendingWheelResult, setPendingWheelResult] = useState<number | null>(null)
-  const [lastSpinEventKey, setLastSpinEventKey] = useState('')
   const [bellActor, setBellActor] = useState<string>()
+  const [bellUsedThisQuestion, setBellUsedThisQuestion] = useState(false)
   const [liveNotice, setLiveNotice] = useState<LiveNotice>()
-  const spinResultTimerRef = useRef<number | null>(null)
+  const spinTimerRef = useRef<number | null>(null)
 
   useRealtimeRoom(roomCode)
   useRoomPolling(roomCode, true)
@@ -68,6 +67,7 @@ export function GamePage() {
   const isMyTurn = activeTurnPlayerId && playerId ? activeTurnPlayerId === playerId : false
   const isObserver = isHost && !playerId
   const canPlay = Boolean(playerId) && Boolean(isConnected) && isMyTurn
+  const canRingBell = Boolean(playerId) && Boolean(isConnected) && !wheelSpinning && !bellActor && !bellUsedThisQuestion
   const displayName = nickname.trim() || room?.players.find((player) => player.id === playerId)?.nickname || 'Chưa xác định'
 
   const usedLetters = useMemo(
@@ -93,8 +93,7 @@ export function GamePage() {
   }, [room?.currentRound, room?.totalRounds])
 
   const answerSlots = useMemo(() => {
-    const masked = room?.maskedAnswer ?? ''
-    return masked.split('')
+    return (room?.maskedAnswer ?? '').split('')
   }, [room?.maskedAnswer])
 
   useEffect(() => {
@@ -116,21 +115,13 @@ export function GamePage() {
   }, [activeTurnPlayerId, room?.lastTurnAt])
 
   useEffect(() => {
-    const latestSpinUpdate = feed.find(
-      (item) => item.eventType === 'GAME_UPDATE' && typeof item.payload?.spinScore === 'number',
-    )
-
-    if (!latestSpinUpdate) {
+    const latest = feed[0]
+    if (!latest || latest.eventType !== 'GAME_UPDATE') {
       return
     }
 
-    const spinScore = latestSpinUpdate.payload?.spinScore
+    const spinScore = latest.payload?.spinScore
     if (typeof spinScore !== 'number') {
-      return
-    }
-
-    const spinEventKey = `${latestSpinUpdate.serverTime}-${spinScore}`
-    if (spinEventKey === lastSpinEventKey) {
       return
     }
 
@@ -144,8 +135,6 @@ export function GamePage() {
     // Pointer is at 12 o'clock, which is 0deg in CSS conic-gradient angle space.
     const pointerAngle = 0
     const alignToPointer = ((pointerAngle - segmentCenterAngle) % 360 + 360) % 360
-    setLastSpinEventKey(spinEventKey)
-    setPendingWheelResult(spinScore)
     setWheelSpinning(true)
     setWheelRotation((prev) => {
       const currentMod = ((prev % 360) + 360) % 360
@@ -153,21 +142,20 @@ export function GamePage() {
       return prev + 1080 + deltaToTarget
     })
 
-    if (spinResultTimerRef.current !== null) {
-      window.clearTimeout(spinResultTimerRef.current)
+    if (spinTimerRef.current !== null) {
+      window.clearTimeout(spinTimerRef.current)
     }
-    spinResultTimerRef.current = window.setTimeout(() => {
+
+    spinTimerRef.current = window.setTimeout(() => {
       setWheelSpinning(false)
       setWheelResult(spinScore)
-      setPendingWheelResult(null)
-      spinResultTimerRef.current = null
     }, 2600)
-  }, [feed, lastSpinEventKey])
+  }, [feed])
 
   useEffect(() => {
     return () => {
-      if (spinResultTimerRef.current !== null) {
-        window.clearTimeout(spinResultTimerRef.current)
+      if (spinTimerRef.current !== null) {
+        window.clearTimeout(spinTimerRef.current)
       }
     }
   }, [])
@@ -180,12 +168,21 @@ export function GamePage() {
 
     if (latest.eventType === 'RING_BELL') {
       setBellActor(latest.actor)
+      setBellUsedThisQuestion(true)
       return
     }
 
-    if (latest.eventType === 'TURN_CHANGE' || latest.eventType === 'ROUND_END' || latest.eventType === 'GAME_END') {
+    const reason = typeof latest.payload?.reason === 'string' ? latest.payload.reason : undefined
+    if (latest.eventType === 'GAME_UPDATE' && reason === 'WRONG_ANSWER_RESET_SCORE') {
       setBellActor(undefined)
       setFullAnswer('')
+      return
+    }
+
+    if (latest.eventType === 'ROUND_END' || latest.eventType === 'GAME_END') {
+      setBellActor(undefined)
+      setFullAnswer('')
+      setBellUsedThisQuestion(false)
     }
   }, [feed])
 
@@ -240,7 +237,8 @@ export function GamePage() {
   useEffect(() => {
     setBellActor(undefined)
     setFullAnswer('')
-  }, [activeTurnPlayerId])
+    setBellUsedThisQuestion(false)
+  }, [room?.currentRound])
 
   const wheelResultLabel = useMemo(() => {
     if (wheelResult === null) {
@@ -288,7 +286,7 @@ export function GamePage() {
   }
 
   const onRingBell = () => {
-    if (!canPlay || bellActor === nickname) {
+    if (!canRingBell || bellActor === nickname) {
       return
     }
 
@@ -301,7 +299,7 @@ export function GamePage() {
 
   const onSubmitFullAnswer = (event: FormEvent) => {
     event.preventDefault()
-    if (!canPlay || bellActor !== nickname || !fullAnswer.trim()) {
+    if (!playerId || !isConnected || bellActor !== nickname || !fullAnswer.trim()) {
       return
     }
 
@@ -348,7 +346,7 @@ export function GamePage() {
         </div>
       ) : null}
 
-      <div className={`grid gap-6 ${isObserver ? 'md:grid-cols-[1fr_340px]' : ''}`}>
+      <div className="grid gap-6">
         <section className="space-y-4 rounded-2xl border border-slate-700 bg-slate-900/90 p-4">
           {isObserver ? (
             <p className="rounded-lg border border-slate-700 bg-slate-800/80 p-3 text-sm text-slate-200">
@@ -434,8 +432,8 @@ export function GamePage() {
               </button>
             </div>
             <p className="mt-2 text-center text-sm text-slate-200">
-              {wheelSpinning ? 'Đang quay: ' : 'Đang trúng: '}
-              <span className="font-bold text-amber-200">{wheelSpinning ? (pendingWheelResult !== null ? formatSpinOutcome(pendingWheelResult) : '--') : wheelResultLabel}</span>
+              {wheelSpinning ? 'Đang quay...' : 'Đang trúng: '}
+              <span className="font-bold text-amber-200">{wheelSpinning ? '--' : wheelResultLabel}</span>
             </p>
           </div>
 
@@ -444,13 +442,20 @@ export function GamePage() {
             <div className="grid grid-cols-8 gap-2 sm:grid-cols-12">
               {GAME_ALPHABET.split('').map((letter) => {
                 const used = usedLetters.has(letter)
+                const tileClass = used
+                  ? 'border-slate-700 bg-slate-800/70 text-slate-400'
+                  : canPlay
+                    ? 'border-cyan-300/40 bg-cyan-500/10 text-cyan-100 hover:bg-cyan-500/20'
+                    : 'border-cyan-300/25 bg-cyan-500/5 text-cyan-100'
                 return (
                   <button
                     key={letter}
                     type="button"
                     onClick={() => onGuessLetter(letter)}
-                    disabled={used || !canPlay}
-                    className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-semibold text-slate-200 disabled:opacity-40"
+                    disabled={used}
+                    className={`rounded-md border px-2 py-1 text-xs font-semibold transition ${tileClass} ${
+                      canPlay ? '' : 'cursor-default'
+                    } disabled:cursor-not-allowed disabled:opacity-60`}
                   >
                     {letter}
                   </button>
@@ -467,7 +472,7 @@ export function GamePage() {
             <button
               type="button"
               onClick={onRingBell}
-              disabled={!canPlay || isBellOwner}
+              disabled={!canRingBell}
               className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-2 font-semibold text-amber-100 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
               🔔 Nhấn chuông đoán đáp án
@@ -477,6 +482,8 @@ export function GamePage() {
                 <span>
                   <span className="font-semibold text-amber-200">{bellActor}</span> đang nhấn chuông đoán toàn bộ đáp án.
                 </span>
+              ) : bellUsedThisQuestion ? (
+                'Câu này đã dùng quyền nhấn chuông. Chờ sang câu tiếp theo.'
               ) : (
                 'Chưa có ai nhấn chuông.'
               )}
@@ -487,7 +494,6 @@ export function GamePage() {
 
         </section>
 
-        {isObserver ? <EventFeed items={feed} /> : null}
       </div>
 
       {!isObserver && isBellOwner ? (
@@ -498,7 +504,7 @@ export function GamePage() {
             <input
               value={fullAnswer}
               onChange={(e) => setFullAnswer(e.target.value)}
-              disabled={!canPlay}
+              disabled={!playerId || !isConnected}
               className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
               placeholder="Nhập dự đoán toàn bộ đáp án"
               autoFocus
@@ -506,7 +512,7 @@ export function GamePage() {
             <button
               className="w-full rounded-lg bg-gradient-to-r from-brand-600 to-indigo-500 px-4 py-2 font-semibold hover:from-brand-500 hover:to-indigo-400 disabled:opacity-50"
               type="submit"
-              disabled={!fullAnswer.trim() || !canPlay}
+              disabled={!fullAnswer.trim() || !playerId || !isConnected}
             >
               Xác nhận đoán đáp án
             </button>

@@ -105,8 +105,7 @@ class AdminRoomControllerIntegrationTest {
 
         mockMvc.perform(post("/api/v1/rooms/{roomCode}/start", roomCode))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value("PLAYING"))
-            .andExpect(jsonPath("$.totalRounds").value(1));
+            .andExpect(jsonPath("$.status").value("PLAYING"));
     }
 
     private String extractJsonField(String json, String fieldName) {

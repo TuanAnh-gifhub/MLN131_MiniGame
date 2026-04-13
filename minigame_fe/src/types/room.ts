@@ -22,6 +22,8 @@ export interface RoomView {
   maskedAnswer?: string
   usedLetters?: string
   lastTurnAt?: string
+  spinRequired?: boolean
+  currentSpinScore?: number
 }
 
 export interface AdminQuestionInput {
