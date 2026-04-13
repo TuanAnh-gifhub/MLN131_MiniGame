@@ -4,6 +4,7 @@ import { GamePage } from './pages/GamePage'
 import { JoinPage } from './pages/JoinPage'
 import { ResultPage } from './pages/ResultPage'
 import { WaitingRoomPage } from './pages/WaitingRoomPage'
+import PresentationPage from './pages/PresentationPage'
 
 export default function AppRouter() {
   return (
@@ -15,6 +16,7 @@ export default function AppRouter() {
       <Route path="/room/:roomCode/waiting" element={<WaitingRoomPage />} />
       <Route path="/room/:roomCode/game" element={<GamePage />} />
       <Route path="/room/:roomCode/result" element={<ResultPage />} />
+      <Route path="/present" element={<PresentationPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
