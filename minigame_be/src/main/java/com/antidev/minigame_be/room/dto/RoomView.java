@@ -2,6 +2,7 @@ package com.antidev.minigame_be.room.dto;
 
 import com.antidev.minigame_be.domain.RoomStatus;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,7 +17,8 @@ public record RoomView(
     Integer totalRounds,
     String clue,
     String maskedAnswer,
-    String usedLetters
+    String usedLetters,
+    Instant lastTurnAt
 ) {
 }
 

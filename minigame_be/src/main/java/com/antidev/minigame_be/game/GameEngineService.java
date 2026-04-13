@@ -37,6 +37,7 @@ public class GameEngineService {
 
     private static final String ALPHABET = "ABCDEFGHIKLMNOPQRSTUVXY";
     private static final int ROUND_WIN_BONUS = 1000;
+    private static final int TURN_TIMEOUT_SECONDS = 30;
 
     private final GameSessionRepository gameSessionRepository;
     private final PlayerRepository playerRepository;
@@ -146,8 +147,10 @@ public class GameEngineService {
         Instant now = Instant.now();
         String expected = normalizeAnswer(session.getCurrentAnswer());
         if (!normalizeAnswer(guess).equals(expected)) {
-            advanceTurn(session, players, now, "WRONG_ANSWER");
-            sendGameUpdate(session, "WRONG_ANSWER", now);
+            actor.setScore(0);
+            playerRepository.save(actor);
+            advanceTurn(session, players, now, "WRONG_ANSWER_RESET_SCORE");
+            sendGameUpdate(session, "WRONG_ANSWER_RESET_SCORE", now);
             return;
         }
 
@@ -186,6 +189,9 @@ public class GameEngineService {
         int roll = spinWheel();
         Instant now = Instant.now();
 
+        session.setCurrentSpinScore(roll);
+        sendGameUpdate(session, "SPIN_RESULT", now);
+
         if (roll == -1) {
             actor.setScore(0);
             playerRepository.save(actor);
@@ -200,7 +206,6 @@ public class GameEngineService {
             return;
         }
 
-        session.setCurrentSpinScore(roll);
         session.setSpinRequired(false);
         session.setLastTurnAt(now);
         sendGameUpdate(session, "SPIN_OK", now);
@@ -367,7 +372,7 @@ public class GameEngineService {
                 "system",
                 Map.of(
                     "nextPlayerId", nextPlayerId,
-                    "timeoutSeconds", 10,
+                    "timeoutSeconds", TURN_TIMEOUT_SECONDS,
                     "reason", reason,
                     "currentRound", session.getCurrentRound(),
                     "totalRounds", session.getTotalRounds()
@@ -384,6 +389,7 @@ public class GameEngineService {
         payload.put("currentRound", session.getCurrentRound());
         payload.put("totalRounds", session.getTotalRounds());
         payload.put("currentTurnPlayerId", session.getCurrentTurnPlayerId());
+        payload.put("timeoutSeconds", TURN_TIMEOUT_SECONDS);
         payload.put("spinRequired", session.isSpinRequired());
 
         if (session.getCurrentClue() != null) {

@@ -24,6 +24,9 @@ export function WaitingRoomPage() {
   const isConnected = useGameStore((s) => s.isConnected)
   const nickname = useSessionStore((s) => s.nickname)
   const isHost = useSessionStore((s) => s.isHost)
+  const playerId = useSessionStore((s) => s.playerId)
+  const isAdminObserver = isHost && !playerId
+  const canStart = (room?.players.length ?? 0) >= 2
 
   useRealtimeRoom(roomCode)
   useRoomPolling(roomCode, true)
@@ -43,6 +46,11 @@ export function WaitingRoomPage() {
   }, [navigate, room?.status, roomCode])
 
   const onStart = async () => {
+    if (!canStart) {
+      setError('Cần ít nhất 2 người chơi để bắt đầu.')
+      return
+    }
+
     try {
       setError(undefined)
       const next = await startRoom(roomCode)
@@ -53,46 +61,47 @@ export function WaitingRoomPage() {
         payload: 'start',
       })
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Cannot start game'
+      const message = caught instanceof Error ? caught.message : 'Không thể bắt đầu trò chơi'
       setError(message)
     }
   }
 
   return (
     <AppShell
-      title={`Waiting Room ${roomCode}`}
-      subtitle="Host controls game start. Players are synced realtime."
+      title={`Phòng chờ ${roomCode}`}
+      subtitle="Chủ phòng điều khiển bắt đầu trò chơi. Người chơi được đồng bộ thời gian thực."
       roomCode={roomCode}
-      phase="Waiting"
-      role={isHost ? 'Host' : 'Player'}
+      phase="Đang chờ"
+      role={isAdminObserver ? 'Quản trị' : isHost ? 'Chủ phòng' : 'Người chơi'}
       connected={isConnected}
     >
-      <div className="grid gap-6 md:grid-cols-[1fr_340px]">
+      <div className={`grid gap-6 ${isAdminObserver ? 'md:grid-cols-[1fr_340px]' : ''}`}>
         <section className="rounded-2xl border border-slate-700 bg-slate-900/90 p-4">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="chip">Players {room?.players.length ?? 0}</span>
-            <span className="chip chip-brand">Host: {room?.hostNickname ?? '--'}</span>
+            <span className="chip">Người chơi {room?.players.length ?? 0}</span>
+            <span className="chip chip-brand">Chủ phòng: {room?.hostNickname ?? '--'}</span>
           </div>
 
-          {room ? <PlayerList players={room.players} /> : <p className="text-slate-400">Loading room...</p>}
+          {room ? <PlayerList players={room.players} /> : <p className="text-slate-400">Đang tải phòng...</p>}
           {error ? <p className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-200">{error}</p> : null}
 
           {isHost ? (
             <button
               type="button"
               onClick={onStart}
-              className="mt-4 w-full rounded-lg bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-2.5 text-base font-bold hover:from-emerald-500 hover:to-teal-400"
+              disabled={!canStart}
+              className="mt-4 w-full rounded-lg bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-2.5 text-base font-bold hover:from-emerald-500 hover:to-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Start Game Show
+              Bắt đầu trò chơi
             </button>
           ) : (
             <p className="mt-4 rounded-lg border border-slate-700 bg-slate-800/80 p-3 text-sm text-slate-300">
-              Waiting for host to start...
+              Đang chờ chủ phòng bắt đầu...
             </p>
           )}
         </section>
 
-        <EventFeed items={feed} />
+        {isAdminObserver ? <EventFeed items={feed} /> : null}
       </div>
     </AppShell>
   )

@@ -23,12 +23,12 @@ export async function apiRequest<T>(path: string, options?: RequestInit): Promis
       ...options,
     })
   } catch {
-    throw new ApiClientError(0, 'Cannot connect to backend service. Please ensure backend is running.')
+    throw new ApiClientError(0, 'Không thể kết nối đến dịch vụ backend. Vui lòng kiểm tra backend đang chạy.')
   }
 
   if (!response.ok) {
     const body = (await response.json().catch(() => undefined)) as ApiErrorResponse | undefined
-    throw new ApiClientError(response.status, body?.message ?? 'Request failed', body)
+    throw new ApiClientError(response.status, body?.message ?? 'Yêu cầu thất bại', body)
   }
 
   return (await response.json()) as T

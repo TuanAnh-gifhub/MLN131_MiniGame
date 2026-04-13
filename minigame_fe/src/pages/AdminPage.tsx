@@ -1,7 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
-import { requestGuestToken } from '../services/authService'
 import { createAdminRoom } from '../services/roomService'
 import { useRoomStore } from '../store/useRoomStore'
 import { useSessionStore } from '../store/useSessionStore'
@@ -13,8 +12,6 @@ const emptyQuestion: AdminQuestionInput = {
   clue: '',
   answer: '',
 }
-
-const ROOM_CODE_PATTERN = /^[A-Z0-9]{4,12}$/
 
 export function AdminPage() {
   const navigate = useNavigate()
@@ -31,12 +28,8 @@ export function AdminPage() {
     if (hostNickname.trim().length < 2) {
       return false
     }
-    const normalizedRoomCode = roomCode.trim().toUpperCase()
-    if (normalizedRoomCode && !ROOM_CODE_PATTERN.test(normalizedRoomCode)) {
-      return false
-    }
     return questions.every((item) => item.clue.trim().length >= 3 && item.answer.trim().length >= 1 && item.category.trim().length >= 2)
-  }, [hostNickname, questions, roomCode])
+  }, [hostNickname, questions])
 
   const updateQuestion = (index: number, next: Partial<AdminQuestionInput>) => {
     setQuestions((prev) => prev.map((item, i) => (i === index ? { ...item, ...next } : item)))
@@ -60,11 +53,6 @@ export function AdminPage() {
     setError(undefined)
 
     const normalizedRoomCode = roomCode.trim().toUpperCase()
-    if (normalizedRoomCode && !ROOM_CODE_PATTERN.test(normalizedRoomCode)) {
-      setError('Room code must be 4-12 characters and only use A-Z or 0-9.')
-      setLoading(false)
-      return
-    }
 
     try {
       const room = await createAdminRoom({
@@ -77,20 +65,17 @@ export function AdminPage() {
         })),
       })
 
-      const token = await requestGuestToken(hostNickname.trim(), room.code)
-      const me = room.players.find((player) => player.nickname.toLowerCase() === hostNickname.trim().toLowerCase())
-
       setSession({
         nickname: hostNickname.trim(),
         roomCode: room.code,
-        token: token.token,
-        isHost: Boolean(me?.host),
-        playerId: me?.id,
+        token: '',
+        isHost: true,
+        playerId: undefined,
       })
       setRoom(room)
       navigate(`/room/${room.code}/waiting`)
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Cannot create admin room'
+      const message = caught instanceof Error ? caught.message : 'Không thể tạo phòng quản trị'
       setError(message)
     } finally {
       setLoading(false)
@@ -98,10 +83,10 @@ export function AdminPage() {
   }
 
   return (
-    <AppShell title="Admin Setup" subtitle="Tao phong, set ma phong va nhap cau hoi/dap an.">
+    <AppShell title="Thiết lập quản trị" subtitle="Tạo phòng, đặt mã phòng và nhập câu hỏi/đáp án.">
       <form onSubmit={onSubmit} className="mx-auto grid w-full max-w-3xl gap-4 rounded-2xl border border-slate-700 bg-slate-900/90 p-6">
         <label className="grid gap-2">
-          <span className="text-sm text-slate-300">Admin / Host Nickname</span>
+          <span className="text-sm text-slate-300">Tên quản trị / chủ phòng</span>
           <input
             className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 outline-none transition focus:border-brand-500"
             value={hostNickname}
@@ -112,13 +97,12 @@ export function AdminPage() {
         </label>
 
         <label className="grid gap-2">
-          <span className="text-sm text-slate-300">Room Code (optional)</span>
+          <span className="text-sm text-slate-300">Mã phòng (không bắt buộc)</span>
           <input
             className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 uppercase outline-none transition focus:border-brand-500"
             value={roomCode}
             onChange={(e) => setRoomCode(e.target.value)}
             placeholder="ABCD12"
-            maxLength={12}
           />
         </label>
 
@@ -126,33 +110,33 @@ export function AdminPage() {
           {questions.map((item, index) => (
             <div key={index} className="grid gap-3 rounded-xl border border-slate-700 bg-slate-950/60 p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-200">Question #{index + 1}</p>
+                <p className="text-sm font-semibold text-slate-200">Câu hỏi #{index + 1}</p>
                 <button
                   type="button"
                   onClick={() => removeQuestion(index)}
                   className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-1 text-xs text-red-100 hover:bg-red-500/20"
                 >
-                  Remove
+                  Xóa
                 </button>
               </div>
 
               <input
                 className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
-                placeholder="Category"
+                placeholder="Chủ đề"
                 value={item.category}
                 onChange={(e) => updateQuestion(index, { category: e.target.value })}
                 maxLength={100}
               />
               <input
                 className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
-                placeholder="Clue"
+                placeholder="Gợi ý"
                 value={item.clue}
                 onChange={(e) => updateQuestion(index, { clue: e.target.value })}
                 maxLength={300}
               />
               <input
                 className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm uppercase"
-                placeholder="Answer"
+                placeholder="Đáp án"
                 value={item.answer}
                 onChange={(e) => updateQuestion(index, { answer: e.target.value })}
                 maxLength={200}
@@ -166,7 +150,7 @@ export function AdminPage() {
           onClick={addQuestion}
           className="w-fit rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100 hover:bg-emerald-500/20"
         >
-          + Add Question
+          + Thêm câu hỏi
         </button>
 
         {error ? <p className="rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-200">{error}</p> : null}
@@ -176,7 +160,7 @@ export function AdminPage() {
           disabled={!canSubmit || loading}
           className="rounded-lg bg-gradient-to-r from-brand-600 to-indigo-500 px-4 py-2.5 font-bold text-white transition hover:from-brand-500 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? 'Processing...' : 'Create Room & Continue'}
+          {loading ? 'Đang xử lý...' : 'Tạo phòng và tiếp tục'}
         </button>
       </form>
     </AppShell>

@@ -16,11 +16,11 @@ export function AppShell({ title, subtitle, roomCode, phase, role, connected, ch
       <div className="relative mx-auto w-full max-w-6xl px-4 py-8 md:px-6">
         <header className="mb-8 rounded-2xl border border-slate-700/70 bg-slate-900/70 p-5 backdrop-blur">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            {roomCode ? <span className="chip">Room {roomCode}</span> : null}
+            {roomCode ? <span className="chip">Phòng {roomCode}</span> : null}
             {phase ? <span className="chip chip-brand">{phase}</span> : null}
             {role ? <span className="chip">{role}</span> : null}
             {connected !== undefined ? (
-              <span className={`chip ${connected ? 'chip-ok' : 'chip-bad'}`}>{connected ? 'Realtime Connected' : 'Disconnected'}</span>
+              <span className={`chip ${connected ? 'chip-ok' : 'chip-bad'}`}>{connected ? 'Đã kết nối thời gian thực' : 'Mất kết nối'}</span>
             ) : null}
           </div>
 

@@ -17,14 +17,14 @@ export function ResultPage() {
 
   return (
     <AppShell
-      title="Final Result"
-      subtitle="Top players for this game session."
+      title="Kết quả chung cuộc"
+      subtitle="Bảng xếp hạng người chơi của phiên này."
       roomCode={room?.code}
-      phase="Completed"
+      phase="Hoàn thành"
       connected={isConnected}
     >
       <section className="rounded-2xl border border-slate-700 bg-slate-900/90 p-4">
-        {ranking.length === 0 ? <p className="text-slate-400">No result yet.</p> : null}
+        {ranking.length === 0 ? <p className="text-slate-400">Chưa có kết quả.</p> : null}
         <ol className="space-y-2">
           {ranking.map((player, index) => (
             <li
@@ -38,7 +38,7 @@ export function ResultPage() {
               <span>
                 #{index + 1} {player.nickname}
               </span>
-              <span className="font-semibold">{player.score} pts</span>
+              <span className="font-semibold">{player.score} điểm</span>
             </li>
           ))}
         </ol>
@@ -47,7 +47,7 @@ export function ResultPage() {
           to="/"
           className="mt-4 inline-block rounded-lg bg-gradient-to-r from-brand-600 to-indigo-500 px-4 py-2 font-semibold text-white hover:from-brand-500 hover:to-indigo-400"
         >
-          Back to Join
+          Quay về trang vào phòng
         </Link>
       </section>
     </AppShell>

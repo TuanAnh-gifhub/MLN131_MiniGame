@@ -23,7 +23,7 @@ class SocketClient {
           resolve()
         },
         onStompError: (frame) => {
-          reject(new Error(frame.headers.message ?? 'WebSocket error'))
+          reject(new Error(frame.headers.message ?? 'Lỗi WebSocket'))
         },
       })
 
