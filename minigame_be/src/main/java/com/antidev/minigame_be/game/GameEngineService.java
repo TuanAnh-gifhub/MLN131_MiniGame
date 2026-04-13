@@ -117,7 +117,7 @@ public class GameEngineService {
 
         if (occurrences <= 0) {
             advanceTurn(session, players, now, "WRONG_LETTER");
-            sendGameUpdate(session, "WRONG_LETTER", now);
+            sendGameUpdate(session, "WRONG_LETTER", now, actor.getNickname());
             return;
         }
 
@@ -135,7 +135,7 @@ public class GameEngineService {
             return;
         }
 
-        sendGameUpdate(session, "CORRECT_LETTER", now);
+        sendGameUpdate(session, "CORRECT_LETTER", now, actor.getNickname());
     }
 
     private void handleGuessAnswer(GameSession session, List<Player> players, Player actor, String payload) {
@@ -150,7 +150,7 @@ public class GameEngineService {
             actor.setScore(0);
             playerRepository.save(actor);
             advanceTurn(session, players, now, "WRONG_ANSWER_RESET_SCORE");
-            sendGameUpdate(session, "WRONG_ANSWER_RESET_SCORE", now);
+            sendGameUpdate(session, "WRONG_ANSWER_RESET_SCORE", now, actor.getNickname());
             return;
         }
 
@@ -190,25 +190,24 @@ public class GameEngineService {
         Instant now = Instant.now();
 
         session.setCurrentSpinScore(roll);
-        sendGameUpdate(session, "SPIN_RESULT", now);
 
         if (roll == -1) {
             actor.setScore(0);
             playerRepository.save(actor);
+            sendGameUpdate(session, "BANKRUPT", now, actor.getNickname());
             advanceTurn(session, players, now, "BANKRUPT");
-            sendGameUpdate(session, "BANKRUPT", now);
             return;
         }
 
         if (roll == 0) {
+            sendGameUpdate(session, "LOSE_TURN", now, actor.getNickname());
             advanceTurn(session, players, now, "LOSE_TURN");
-            sendGameUpdate(session, "LOSE_TURN", now);
             return;
         }
 
         session.setSpinRequired(false);
         session.setLastTurnAt(now);
-        sendGameUpdate(session, "SPIN_OK", now);
+        sendGameUpdate(session, "SPIN_OK", now, actor.getNickname());
     }
 
     private void advanceTurn(GameSession session, List<Player> players, Instant now, String reason) {
@@ -383,6 +382,10 @@ public class GameEngineService {
     }
 
     private void sendGameUpdate(GameSession session, String reason, Instant now) {
+        sendGameUpdate(session, reason, now, null);
+    }
+
+    private void sendGameUpdate(GameSession session, String reason, Instant now, String actorNickname) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("reason", reason);
         payload.put("alphabet", ALPHABET);
@@ -391,6 +394,9 @@ public class GameEngineService {
         payload.put("currentTurnPlayerId", session.getCurrentTurnPlayerId());
         payload.put("timeoutSeconds", TURN_TIMEOUT_SECONDS);
         payload.put("spinRequired", session.isSpinRequired());
+        if (actorNickname != null && !actorNickname.isBlank()) {
+            payload.put("actorNickname", actorNickname);
+        }
 
         if (session.getCurrentClue() != null) {
             payload.put("clue", session.getCurrentClue());

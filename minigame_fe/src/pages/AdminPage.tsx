@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { createAdminRoom } from '../services/roomService'
@@ -24,13 +24,6 @@ export function AdminPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>()
 
-  const canSubmit = useMemo(() => {
-    if (hostNickname.trim().length < 2) {
-      return false
-    }
-    return questions.every((item) => item.clue.trim().length >= 3 && item.answer.trim().length >= 1 && item.category.trim().length >= 2)
-  }, [hostNickname, questions])
-
   const updateQuestion = (index: number, next: Partial<AdminQuestionInput>) => {
     setQuestions((prev) => prev.map((item, i) => (i === index ? { ...item, ...next } : item)))
   }
@@ -45,9 +38,6 @@ export function AdminPage() {
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!canSubmit) {
-      return
-    }
 
     setLoading(true)
     setError(undefined)
@@ -92,7 +82,6 @@ export function AdminPage() {
             value={hostNickname}
             onChange={(e) => setHostNickname(e.target.value)}
             placeholder="admin_1"
-            maxLength={30}
           />
         </label>
 
@@ -125,21 +114,18 @@ export function AdminPage() {
                 placeholder="Chủ đề"
                 value={item.category}
                 onChange={(e) => updateQuestion(index, { category: e.target.value })}
-                maxLength={100}
               />
               <input
                 className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
                 placeholder="Gợi ý"
                 value={item.clue}
                 onChange={(e) => updateQuestion(index, { clue: e.target.value })}
-                maxLength={300}
               />
               <input
                 className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm uppercase"
                 placeholder="Đáp án"
                 value={item.answer}
                 onChange={(e) => updateQuestion(index, { answer: e.target.value })}
-                maxLength={200}
               />
             </div>
           ))}
@@ -157,7 +143,7 @@ export function AdminPage() {
 
         <button
           type="submit"
-          disabled={!canSubmit || loading}
+          disabled={loading}
           className="rounded-lg bg-gradient-to-r from-brand-600 to-indigo-500 px-4 py-2.5 font-bold text-white transition hover:from-brand-500 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? 'Đang xử lý...' : 'Tạo phòng và tiếp tục'}

@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from 'react'
+import type { PropsWithChildren, ReactNode } from 'react'
 
 interface AppShellProps extends PropsWithChildren {
   title: string
@@ -7,9 +7,10 @@ interface AppShellProps extends PropsWithChildren {
   phase?: string
   role?: string
   connected?: boolean
+  headerRight?: ReactNode
 }
 
-export function AppShell({ title, subtitle, roomCode, phase, role, connected, children }: AppShellProps) {
+export function AppShell({ title, subtitle, roomCode, phase, role, connected, headerRight, children }: AppShellProps) {
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,rgba(59,130,246,0.3),transparent_28%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.22),transparent_24%),radial-gradient(circle_at_100%_80%,rgba(250,204,21,0.16),transparent_30%)]" />
@@ -24,7 +25,10 @@ export function AppShell({ title, subtitle, roomCode, phase, role, connected, ch
             ) : null}
           </div>
 
-          <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">{title}</h1>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">{title}</h1>
+            {headerRight ? <div>{headerRight}</div> : null}
+          </div>
           {subtitle ? <p className="mt-2 max-w-3xl text-slate-300">{subtitle}</p> : null}
         </header>
         {children}

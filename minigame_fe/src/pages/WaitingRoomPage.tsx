@@ -27,6 +27,7 @@ export function WaitingRoomPage() {
   const playerId = useSessionStore((s) => s.playerId)
   const isAdminObserver = isHost && !playerId
   const canStart = (room?.players.length ?? 0) >= 2
+  const displayName = nickname.trim() || room?.players.find((player) => player.id === playerId)?.nickname || 'Chưa xác định'
 
   useRealtimeRoom(roomCode)
   useRoomPolling(roomCode, true)
@@ -77,6 +78,12 @@ export function WaitingRoomPage() {
     >
       <div className={`grid gap-6 ${isAdminObserver ? 'md:grid-cols-[1fr_340px]' : ''}`}>
         <section className="rounded-2xl border border-slate-700 bg-slate-900/90 p-4">
+          {!isAdminObserver ? (
+            <p className="mb-3 rounded-lg border border-sky-400/30 bg-sky-500/10 p-2 text-sm text-sky-100">
+              Bạn đang tham gia với tên: <span className="font-semibold">{displayName}</span>
+            </p>
+          ) : null}
+
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <span className="chip">Người chơi {room?.players.length ?? 0}</span>
             <span className="chip chip-brand">Chủ phòng: {room?.hostNickname ?? '--'}</span>
