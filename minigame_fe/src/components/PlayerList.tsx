@@ -23,16 +23,16 @@ export function PlayerList({ players, currentTurnPlayerId }: PlayerListProps) {
               <span className="font-semibold text-slate-100">
                 #{index + 1} {player.nickname}
               </span>
-              <span className="text-sm font-semibold text-amber-200">{player.score} pts</span>
+              <span className="text-sm font-semibold text-amber-200">{player.score} điểm</span>
             </div>
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-300">
               <span className={`rounded-full px-2 py-0.5 ${player.host ? 'bg-blue-500/20 text-blue-100' : 'bg-slate-700 text-slate-200'}`}>
-                {player.host ? 'Host' : 'Player'}
+                {player.host ? 'Chủ phòng' : 'Người chơi'}
               </span>
               <span className={`rounded-full px-2 py-0.5 ${player.connected ? 'bg-emerald-500/20 text-emerald-100' : 'bg-red-500/20 text-red-100'}`}>
-                {player.connected ? 'Online' : 'Offline'}
+                {player.connected ? 'Trực tuyến' : 'Ngoại tuyến'}
               </span>
-              {isCurrent ? <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-amber-100">Current Turn</span> : null}
+              {isCurrent ? <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-amber-100">Đang đến lượt</span> : null}
             </div>
           </li>
         )

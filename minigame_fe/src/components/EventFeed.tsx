@@ -14,9 +14,9 @@ export function EventFeed({ items }: EventFeedProps) {
 
   return (
     <section className="rounded-2xl border border-slate-700 bg-slate-900/90 p-4">
-      <h3 className="mb-3 text-lg font-semibold text-slate-100">Realtime Feed</h3>
+      <h3 className="mb-3 text-lg font-semibold text-slate-100">Bảng sự kiện thời gian thực</h3>
       <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-        {items.length === 0 ? <p className="text-sm text-slate-400">No events yet.</p> : null}
+        {items.length === 0 ? <p className="text-sm text-slate-400">Chưa có sự kiện nào.</p> : null}
         {items.map((item, index) => (
           <article
             key={`${item.serverTime}-${index}`}

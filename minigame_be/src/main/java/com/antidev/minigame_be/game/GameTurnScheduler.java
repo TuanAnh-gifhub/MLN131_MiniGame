@@ -18,7 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GameTurnScheduler {
 
-    private static final Duration TURN_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration TURN_TIMEOUT = Duration.ofSeconds(30);
 
     private final GameSessionRepository gameSessionRepository;
     private final PlayerRepository playerRepository;

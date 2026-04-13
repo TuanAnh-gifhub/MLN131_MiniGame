@@ -2,10 +2,12 @@ export type GameEventType =
   | 'PLAYER_JOIN'
   | 'PLAYER_READY'
   | 'START_GAME'
+  | 'RING_BELL'
   | 'GUESS_LETTER'
   | 'GUESS_ANSWER'
   | 'TURN_CHANGE'
   | 'GAME_UPDATE'
+  | 'ROUND_END'
   | 'GAME_END'
 
 export interface GameInboundMessage {
@@ -22,6 +24,10 @@ export interface GameOutboundMessage {
     content?: string
     nextPlayerId?: string
     timeoutSeconds?: number
+    spinScore?: number
+    reason?: string
+    currentRound?: number
+    totalRounds?: number
     [key: string]: unknown
   }
   serverTime: string

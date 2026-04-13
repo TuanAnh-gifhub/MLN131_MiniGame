@@ -40,13 +40,13 @@ public class RoomService {
 
     @Transactional
     public RoomView createRoom(String hostNickname) {
-        Room room = createRoomInternal(hostNickname, null);
+        Room room = createRoomInternal(hostNickname, null, true);
         return getRoom(room.getCode());
     }
 
     @Transactional
     public RoomView createRoomWithQuestions(AdminCreateRoomRequest request) {
-        Room room = createRoomInternal(request.hostNickname(), request.roomCode());
+        Room room = createRoomInternal(request.hostNickname(), request.roomCode(), false);
 
         for (AdminQuestionRequest item : request.questions()) {
             Question question = new Question();
@@ -108,7 +108,10 @@ public class RoomService {
             latest != null ? latest.getTotalRounds() : null,
             latest != null ? latest.getCurrentClue() : null,
             latest != null ? latest.getMaskedAnswer() : null,
-            latest != null ? latest.getUsedLetters() : null
+            latest != null ? latest.getUsedLetters() : null,
+            latest != null ? latest.getLastTurnAt() : null,
+            latest != null ? latest.isSpinRequired() : null,
+            latest != null ? latest.getCurrentSpinScore() : null
         );
     }
 
@@ -137,6 +140,12 @@ public class RoomService {
         session.setStartedAt(Instant.now());
         session.setLastTurnAt(Instant.now());
         session.setCurrentTurnPlayerId(randomStarter.getId());
+
+        int roomQuestionCount = questionRepository.findByActiveTrueAndRoomCode(room.getCode()).size();
+        if (roomQuestionCount > 0) {
+            session.setTotalRounds(roomQuestionCount);
+        }
+
         gameEngineService.initializeFirstRound(session);
         gameSessionRepository.save(session);
 
@@ -153,20 +162,23 @@ public class RoomService {
         throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Cannot allocate room code");
     }
 
-    private Room createRoomInternal(String hostNickname, String preferredCodeRaw) {
+    private Room createRoomInternal(String hostNickname, String preferredCodeRaw, boolean createHostPlayer) {
         Room room = new Room();
         room.setCode(resolveRoomCode(preferredCodeRaw));
         room.setHostNickname(hostNickname.trim());
         room.setStatus(RoomStatus.WAITING);
         room = roomRepository.save(room);
 
-        Player host = new Player();
-        host.setRoom(room);
-        host.setNickname(hostNickname.trim());
-        host.setHost(true);
-        host.setConnected(true);
-        host.setJoinedAt(Instant.now());
-        playerRepository.save(host);
+        if (createHostPlayer) {
+            Player host = new Player();
+            host.setRoom(room);
+            host.setNickname(hostNickname.trim());
+            host.setHost(true);
+            host.setConnected(true);
+            host.setJoinedAt(Instant.now());
+            playerRepository.save(host);
+        }
+
         return room;
     }
 
@@ -184,6 +196,7 @@ public class RoomService {
         }
         return preferredCode;
     }
+
 
     private String randomCode() {
         String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
