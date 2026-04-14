@@ -37,7 +37,6 @@ export function GamePage() {
   const isHost = useSessionStore((s) => s.isHost)
 
   const [fullAnswer, setFullAnswer] = useState('')
-  const [showEventFeed, setShowEventFeed] = useState(true)
   const [remainingSeconds, setRemainingSeconds] = useState(TURN_TIMEOUT_SECONDS)
   const [wheelRotation, setWheelRotation] = useState(0)
   const [wheelSpinning, setWheelSpinning] = useState(false)
