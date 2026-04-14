@@ -20,7 +20,9 @@ public record RoomView(
     String usedLetters,
     Instant lastTurnAt,
     Boolean spinRequired,
-    Integer currentSpinScore
+    Integer currentSpinScore,
+    UUID activeBellPlayerId,
+    List<UUID> bellUsedPlayerIds
 ) {
 }
 

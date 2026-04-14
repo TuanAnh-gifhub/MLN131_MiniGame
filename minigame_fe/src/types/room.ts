@@ -24,6 +24,8 @@ export interface RoomView {
   lastTurnAt?: string
   spinRequired?: boolean
   currentSpinScore?: number
+  activeBellPlayerId?: string
+  bellUsedPlayerIds?: string[]
 }
 
 export interface AdminQuestionInput {

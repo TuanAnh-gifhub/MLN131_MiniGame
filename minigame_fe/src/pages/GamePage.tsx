@@ -37,13 +37,10 @@ export function GamePage() {
   const isHost = useSessionStore((s) => s.isHost)
 
   const [fullAnswer, setFullAnswer] = useState('')
-  const [showEventFeed, setShowEventFeed] = useState(true)
   const [remainingSeconds, setRemainingSeconds] = useState(TURN_TIMEOUT_SECONDS)
   const [wheelRotation, setWheelRotation] = useState(0)
   const [wheelSpinning, setWheelSpinning] = useState(false)
   const [wheelResult, setWheelResult] = useState<number | null>(null)
-  const [bellActor, setBellActor] = useState<string>()
-  const [bellUsedThisQuestion, setBellUsedThisQuestion] = useState(false)
   const [liveNotice, setLiveNotice] = useState<LiveNotice>()
   const spinTimerRef = useRef<number | null>(null)
 
@@ -64,10 +61,13 @@ export function GamePage() {
   }, [feed, navigate, roomCode])
 
   const activeTurnPlayerId = room?.currentTurnPlayerId ?? currentTurnPlayerId
+  const activeBellPlayerId = room?.activeBellPlayerId
+  const bellUsedPlayerIds = room?.bellUsedPlayerIds ?? []
   const isMyTurn = activeTurnPlayerId && playerId ? activeTurnPlayerId === playerId : false
   const isObserver = isHost && !playerId
   const canPlay = Boolean(playerId) && Boolean(isConnected) && isMyTurn
-  const canRingBell = Boolean(playerId) && Boolean(isConnected) && !wheelSpinning && !bellActor && !bellUsedThisQuestion
+  const bellUsedByMe = Boolean(playerId && bellUsedPlayerIds.includes(playerId))
+  const canRingBell = Boolean(playerId) && Boolean(isConnected) && !wheelSpinning && !activeBellPlayerId && !bellUsedByMe
   const displayName = nickname.trim() || room?.players.find((player) => player.id === playerId)?.nickname || 'Chưa xác định'
 
   const usedLetters = useMemo(
@@ -95,6 +95,13 @@ export function GamePage() {
   const answerSlots = useMemo(() => {
     return (room?.maskedAnswer ?? '').split('')
   }, [room?.maskedAnswer])
+
+  const activeBellPlayerName = useMemo(() => {
+    if (!activeBellPlayerId || !room?.players?.length) {
+      return undefined
+    }
+    return room.players.find((player) => player.id === activeBellPlayerId)?.nickname
+  }, [activeBellPlayerId, room?.players])
 
   useEffect(() => {
     if (!room?.lastTurnAt || !activeTurnPlayerId) {
@@ -161,30 +168,11 @@ export function GamePage() {
   }, [])
 
   useEffect(() => {
-    const latest = feed[0]
-    if (!latest) {
+    if (!playerId || activeBellPlayerId === playerId) {
       return
     }
-
-    if (latest.eventType === 'RING_BELL') {
-      setBellActor(latest.actor)
-      setBellUsedThisQuestion(true)
-      return
-    }
-
-    const reason = typeof latest.payload?.reason === 'string' ? latest.payload.reason : undefined
-    if (latest.eventType === 'GAME_UPDATE' && reason === 'WRONG_ANSWER_RESET_SCORE') {
-      setBellActor(undefined)
-      setFullAnswer('')
-      return
-    }
-
-    if (latest.eventType === 'ROUND_END' || latest.eventType === 'GAME_END') {
-      setBellActor(undefined)
-      setFullAnswer('')
-      setBellUsedThisQuestion(false)
-    }
-  }, [feed])
+    setFullAnswer('')
+  }, [activeBellPlayerId, playerId])
 
   useEffect(() => {
     const latest = feed[0]
@@ -235,9 +223,7 @@ export function GamePage() {
   }, [feed])
 
   useEffect(() => {
-    setBellActor(undefined)
     setFullAnswer('')
-    setBellUsedThisQuestion(false)
   }, [room?.currentRound])
 
   const wheelResultLabel = useMemo(() => {
@@ -286,7 +272,7 @@ export function GamePage() {
   }
 
   const onRingBell = () => {
-    if (!canRingBell || bellActor === nickname) {
+    if (!canRingBell) {
       return
     }
 
@@ -299,7 +285,7 @@ export function GamePage() {
 
   const onSubmitFullAnswer = (event: FormEvent) => {
     event.preventDefault()
-    if (!playerId || !isConnected || bellActor !== nickname || !fullAnswer.trim()) {
+    if (!playerId || !isConnected || activeBellPlayerId !== playerId || !fullAnswer.trim()) {
       return
     }
 
@@ -309,10 +295,9 @@ export function GamePage() {
       payload: fullAnswer.trim(),
     })
     setFullAnswer('')
-    setBellActor(undefined)
   }
 
-  const isBellOwner = bellActor === nickname
+  const isBellOwner = Boolean(playerId && activeBellPlayerId === playerId)
 
   return (
     <AppShell
@@ -478,12 +463,12 @@ export function GamePage() {
               🔔 Nhấn chuông đoán đáp án
             </button>
             <div className="rounded-lg border border-slate-700 bg-slate-800/80 px-4 py-2 text-sm text-slate-200">
-              {bellActor ? (
+              {activeBellPlayerName ? (
                 <span>
-                  <span className="font-semibold text-amber-200">{bellActor}</span> đang nhấn chuông đoán toàn bộ đáp án.
+                  <span className="font-semibold text-amber-200">{activeBellPlayerName}</span> đang nhấn chuông đoán toàn bộ đáp án.
                 </span>
-              ) : bellUsedThisQuestion ? (
-                'Câu này đã dùng quyền nhấn chuông. Chờ sang câu tiếp theo.'
+              ) : bellUsedByMe ? (
+                'Bạn đã dùng quyền nhấn chuông ở câu này. Chờ sang câu tiếp theo.'
               ) : (
                 'Chưa có ai nhấn chuông.'
               )}

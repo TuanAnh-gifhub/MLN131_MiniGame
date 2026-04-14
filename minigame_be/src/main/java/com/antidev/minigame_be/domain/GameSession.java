@@ -66,6 +66,12 @@ public class GameSession {
     @Column(name = "spin_required", nullable = false)
     private boolean spinRequired = true;
 
+    @Column(name = "active_bell_player_id")
+    private UUID activeBellPlayerId;
+
+    @Column(name = "bell_used_player_ids", length = 1200)
+    private String bellUsedPlayerIds;
+
     @Column(name = "started_at")
     private Instant startedAt;
 

@@ -22,10 +22,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -111,7 +114,9 @@ public class RoomService {
             latest != null ? latest.getUsedLetters() : null,
             latest != null ? latest.getLastTurnAt() : null,
             latest != null ? latest.isSpinRequired() : null,
-            latest != null ? latest.getCurrentSpinScore() : null
+            latest != null ? latest.getCurrentSpinScore() : null,
+            latest != null ? latest.getActiveBellPlayerId() : null,
+            latest != null ? parseUuidList(latest.getBellUsedPlayerIds()) : List.of()
         );
     }
 
@@ -205,6 +210,24 @@ public class RoomService {
             builder.append(alphabet.charAt(ThreadLocalRandom.current().nextInt(alphabet.length())));
         }
         return builder.toString();
+    }
+
+    private List<UUID> parseUuidList(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return List.of();
+        }
+
+        return Arrays.stream(rawValue.split(","))
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .flatMap(value -> {
+                try {
+                    return Stream.of(UUID.fromString(value));
+                } catch (IllegalArgumentException ignored) {
+                    return Stream.empty();
+                }
+            })
+            .collect(Collectors.toList());
     }
 }
 
