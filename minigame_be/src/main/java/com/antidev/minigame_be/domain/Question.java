@@ -28,10 +28,10 @@ public class Question {
     @Column(nullable = false, length = 100)
     private String category;
 
-    @Column(nullable = false, length = 300)
+    @Column(nullable = false, length = 300, columnDefinition = "NVARCHAR(300)")
     private String clue;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = 200, columnDefinition = "NVARCHAR(200)")
     private String answer;
 
     @Column(name = "room_code", length = 12)
@@ -40,4 +40,3 @@ public class Question {
     @Column(nullable = false)
     private boolean active = true;
 }
-
