@@ -53,6 +53,7 @@ public class GameEngineService {
         Player actor = findActor(players, message.actor());
 
         switch (message.eventType()) {
+            case RING_BELL -> handleRingBell(session, actor);
             case GUESS_ANSWER -> handleGuessAnswer(session, players, actor, message.payload());
             case GUESS_LETTER -> {
                 if (!actor.getId().equals(session.getCurrentTurnPlayerId())) {
@@ -86,6 +87,10 @@ public class GameEngineService {
     }
 
     private void handleGuessLetterEvent(GameSession session, List<Player> players, Player actor, String payload) {
+        if (session.getActiveBellPlayerId() != null) {
+            throw new ApiException(HttpStatus.CONFLICT, "Another player is answering by bell");
+        }
+
         String normalized = payload == null ? "" : payload.trim().toUpperCase(Locale.ROOT);
 
         if (normalized.startsWith("SPIN")) {
@@ -140,6 +145,10 @@ public class GameEngineService {
     }
 
     private void handleGuessAnswer(GameSession session, List<Player> players, Player actor, String payload) {
+        if (session.getActiveBellPlayerId() == null || !session.getActiveBellPlayerId().equals(actor.getId())) {
+            throw new ApiException(HttpStatus.CONFLICT, "You must ring the bell before guessing the full answer");
+        }
+
         String guess = payload == null ? "" : payload.trim().toUpperCase(Locale.ROOT);
         if (guess.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Answer guess cannot be blank");
@@ -150,11 +159,47 @@ public class GameEngineService {
         if (!normalizeAnswer(guess).equals(expected)) {
             actor.setScore(0);
             playerRepository.save(actor);
+            session.setActiveBellPlayerId(null);
+            session.setLastTurnAt(now);
             sendGameUpdate(session, "WRONG_ANSWER_RESET_SCORE", now, actor.getNickname());
             return;
         }
 
         finishRound(session, actor, now, "BINGO");
+    }
+
+    private void handleRingBell(GameSession session, Player actor) {
+        Instant now = Instant.now();
+        if (session.getActiveBellPlayerId() != null) {
+            throw new ApiException(HttpStatus.CONFLICT, "Another player is already ringing the bell");
+        }
+
+        Set<UUID> usedPlayers = readBellUsedPlayerIds(session.getBellUsedPlayerIds());
+        if (usedPlayers.contains(actor.getId())) {
+            throw new ApiException(HttpStatus.CONFLICT, "You already used bell for this question");
+        }
+
+        usedPlayers.add(actor.getId());
+        session.setBellUsedPlayerIds(serializeBellUsedPlayerIds(usedPlayers));
+        session.setActiveBellPlayerId(actor.getId());
+        session.setLastTurnAt(now);
+
+        messagingTemplate.convertAndSend(
+            "/topic/rooms/" + session.getRoom().getCode(),
+            new GameOutboundMessage(
+                GameEventType.RING_BELL,
+                session.getRoom().getCode(),
+                actor.getNickname(),
+                Map.of(
+                    "actorPlayerId", actor.getId(),
+                    "currentRound", session.getCurrentRound(),
+                    "totalRounds", session.getTotalRounds()
+                ),
+                now
+            )
+        );
+
+        sendGameUpdate(session, "BELL_LOCKED", now, actor.getNickname());
     }
 
     private void finishRound(GameSession session, Player winner, Instant now, String reason) {
@@ -164,6 +209,8 @@ public class GameEngineService {
         session.setMaskedAnswer(session.getCurrentAnswer());
         session.setCurrentSpinScore(null);
         session.setSpinRequired(true);
+        session.setActiveBellPlayerId(null);
+        session.setBellUsedPlayerIds("");
         session.setLastTurnAt(now);
 
         sendRoundEnd(session, winner, reason, now);
@@ -230,6 +277,8 @@ public class GameEngineService {
         session.setUsedLetters("");
         session.setCurrentSpinScore(null);
         session.setSpinRequired(true);
+        session.setActiveBellPlayerId(null);
+        session.setBellUsedPlayerIds("");
     }
 
     private void endGame(GameSession session, Instant now, Player winner) {
@@ -326,6 +375,35 @@ public class GameEngineService {
         return String.join(",", values);
     }
 
+    private Set<UUID> readBellUsedPlayerIds(String rawValue) {
+        Set<UUID> result = new LinkedHashSet<>();
+        if (rawValue == null || rawValue.isBlank()) {
+            return result;
+        }
+
+        String[] parts = rawValue.split(",");
+        for (String part : parts) {
+            String value = part.trim();
+            if (value.isBlank()) {
+                continue;
+            }
+            try {
+                result.add(UUID.fromString(value));
+            } catch (IllegalArgumentException ignored) {
+                // Ignore malformed legacy values instead of breaking active games.
+            }
+        }
+        return result;
+    }
+
+    private String serializeBellUsedPlayerIds(Set<UUID> usedPlayers) {
+        List<String> values = new ArrayList<>();
+        for (UUID playerId : usedPlayers) {
+            values.add(playerId.toString());
+        }
+        return String.join(",", values);
+    }
+
     private int countOccurrences(String answer, char letter) {
         int count = 0;
         for (int i = 0; i < answer.length(); i++) {
@@ -395,6 +473,8 @@ public class GameEngineService {
         payload.put("currentTurnPlayerId", session.getCurrentTurnPlayerId());
         payload.put("timeoutSeconds", TURN_TIMEOUT_SECONDS);
         payload.put("spinRequired", session.isSpinRequired());
+        payload.put("activeBellPlayerId", session.getActiveBellPlayerId());
+        payload.put("bellUsedPlayerIds", new ArrayList<>(readBellUsedPlayerIds(session.getBellUsedPlayerIds())));
         if (actorNickname != null && !actorNickname.isBlank()) {
             payload.put("actorNickname", actorNickname);
         }
