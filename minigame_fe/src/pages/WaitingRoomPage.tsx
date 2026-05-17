@@ -60,34 +60,34 @@ export function WaitingRoomPage() {
 
   return (
     <AppShell
-      title={`Waiting Room ${roomCode}`}
-      subtitle="Host controls game start. Players are synced realtime."
+      title={`PHÒNG CHỜ ${roomCode}`}
+      subtitle="Chủ phòng sẽ bắt đầu trò chơi. Vui lòng chờ..."
       roomCode={roomCode}
       phase="Waiting"
       role={isHost ? 'Host' : 'Player'}
       connected={isConnected}
     >
       <div className="grid gap-6 md:grid-cols-[1fr_340px]">
-        <section className="rounded-2xl border border-slate-700 bg-slate-900/90 p-4">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="chip">Players {room?.players.length ?? 0}</span>
-            <span className="chip chip-brand">Host: {room?.hostNickname ?? '--'}</span>
+        <section className="rounded-2xl border-2 border-yellow-500/40 bg-red-900/90 p-6 shadow-[0_0_25px_rgba(234,179,8,0.2)]">
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <span className="chip">Người chơi: {room?.players.length ?? 0}</span>
+            <span className="chip chip-brand">Quản trò: {room?.hostNickname ?? '--'}</span>
           </div>
 
-          {room ? <PlayerList players={room.players} /> : <p className="text-slate-400">Loading room...</p>}
-          {error ? <p className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-200">{error}</p> : null}
+          {room ? <PlayerList players={room.players} /> : <p className="text-yellow-200/60 font-medium">Đang tải phòng...</p>}
+          {error ? <p className="mt-3 rounded-lg border-2 border-orange-500/50 bg-orange-500/20 p-3 text-sm font-bold text-orange-200">{error}</p> : null}
 
           {isHost ? (
             <button
               type="button"
               onClick={onStart}
-              className="mt-4 w-full rounded-lg bg-gradient-to-r from-emerald-600 to-teal-500 px-4 py-2.5 text-base font-bold hover:from-emerald-500 hover:to-teal-400"
+              className="mt-6 w-full rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 border-2 border-yellow-400 px-4 py-3 text-lg font-black uppercase tracking-widest text-red-950 shadow-lg transition-all hover:scale-[1.02] hover:from-yellow-400 hover:to-yellow-500 active:scale-95"
             >
-              Start Game Show
+              BẮT ĐẦU TRÒ CHƠI
             </button>
           ) : (
-            <p className="mt-4 rounded-lg border border-slate-700 bg-slate-800/80 p-3 text-sm text-slate-300">
-              Waiting for host to start...
+            <p className="mt-6 rounded-xl border border-yellow-500/30 bg-red-950/60 p-4 text-center font-bold tracking-wide text-yellow-300 animate-pulse shadow-inner">
+              Đang chờ Quản trò bắt đầu...
             </p>
           )}
         </section>

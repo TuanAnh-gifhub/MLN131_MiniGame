@@ -16,7 +16,8 @@ public record RoomView(
     Integer totalRounds,
     String clue,
     String maskedAnswer,
-    String usedLetters
+    String usedLetters,
+    String wrongGuessers
 ) {
 }
 

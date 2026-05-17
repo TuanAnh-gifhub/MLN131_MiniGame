@@ -9,6 +9,9 @@ public enum GameEventType {
     TURN_CHANGE,
     GAME_UPDATE,
     ROUND_END,
-    GAME_END
+    GAME_END,
+    ADMIN_SKIP_TURN,
+    ADMIN_START_TIMER,
+    ADMIN_PAUSE_TIMER
 }
 

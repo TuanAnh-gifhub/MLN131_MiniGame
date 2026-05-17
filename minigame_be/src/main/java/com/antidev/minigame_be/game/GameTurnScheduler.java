@@ -27,22 +27,8 @@ public class GameTurnScheduler {
     @Scheduled(fixedDelay = 1000)
     @Transactional
     public void rotateExpiredTurns() {
-        Instant now = Instant.now();
-        List<GameSession> activeSessions = gameSessionRepository.findByStatus(GameSessionStatus.IN_PROGRESS);
-
-        for (GameSession session : activeSessions) {
-            Instant lastTurnAt = session.getLastTurnAt();
-            if (lastTurnAt == null || Duration.between(lastTurnAt, now).compareTo(TURN_TIMEOUT) < 0) {
-                continue;
-            }
-
-            List<Player> players = playerRepository.findByRoomCodeOrderByJoinedAtAsc(session.getRoom().getCode());
-            if (players.isEmpty()) {
-                continue;
-            }
-
-            gameEngineService.rotateTurnByTimeout(session, players, now);
-        }
+        // Disabled automatic turn rotation as per user request.
+        // Admin will manually skip turns.
     }
 }
 

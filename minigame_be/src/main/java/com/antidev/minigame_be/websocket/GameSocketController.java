@@ -27,6 +27,11 @@ public class GameSocketController {
             return;
         }
 
+        if (message.eventType() == GameEventType.ADMIN_SKIP_TURN || message.eventType() == GameEventType.ADMIN_START_TIMER || message.eventType() == GameEventType.ADMIN_PAUSE_TIMER) {
+            gameEngineService.handleAdminEvent(roomCode, message);
+            return;
+        }
+
         GameOutboundMessage outbound = new GameOutboundMessage(
             message.eventType(),
             roomCode,

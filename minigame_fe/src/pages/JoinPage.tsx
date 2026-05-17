@@ -53,17 +53,17 @@ export function JoinPage() {
   }
 
   return (
-    <AppShell title="Join Game" subtitle="Nhap ten va ma phong de vao tro choi.">
+    <AppShell title="THAM GIA TRÒ CHƠI" subtitle="Nhập Tên người chơi và Mã phòng để bước vào thử thách.">
       <section className="mx-auto w-full max-w-xl">
-        <form onSubmit={onSubmit} className="grid gap-4 rounded-2xl border border-slate-700 bg-slate-900/90 p-6">
-          <p className="text-sm text-slate-400">
-            Admin tao phong tai <Link to="/admin" className="text-brand-300 underline">/admin</Link>
+        <form onSubmit={onSubmit} className="grid gap-5 rounded-2xl border-2 border-yellow-500/40 bg-red-900/90 p-8 shadow-[0_0_25px_rgba(234,179,8,0.2)]">
+          <p className="text-sm font-medium text-yellow-200/70">
+            Admin tạo phòng tại <Link to="/admin" className="text-yellow-400 font-bold underline hover:text-yellow-300">/admin</Link>
           </p>
           <label className="grid gap-2">
-            <span className="text-sm text-slate-300">Nickname</span>
+            <span className="text-sm font-bold uppercase tracking-wider text-yellow-300">Tên người chơi</span>
             <input
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 outline-none transition focus:border-brand-500"
-              placeholder="e.g. Captain_01"
+              className="rounded-lg border-2 border-red-800 bg-red-950 px-4 py-3 font-semibold text-white outline-none transition focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-red-400/50"
+              placeholder="VD: Dong_Chi_01"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               maxLength={30}
@@ -71,9 +71,9 @@ export function JoinPage() {
           </label>
 
           <label className="grid gap-2">
-            <span className="text-sm text-slate-300">Room Code</span>
+            <span className="text-sm font-bold uppercase tracking-wider text-yellow-300">Mã phòng</span>
             <input
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 uppercase outline-none transition focus:border-brand-500"
+              className="rounded-lg border-2 border-red-800 bg-red-950 px-4 py-3 font-mono font-bold text-white uppercase outline-none transition focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-red-400/50 tracking-widest"
               placeholder="ABCD12"
               value={roomCodeInput}
               onChange={(e) => setRoomCodeInput(e.target.value)}
@@ -81,14 +81,14 @@ export function JoinPage() {
             />
           </label>
 
-          {error ? <p className="rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-200">{error}</p> : null}
+          {error ? <p className="rounded-lg border-2 border-orange-500/50 bg-orange-500/20 p-3 text-sm font-bold text-orange-200">{error}</p> : null}
 
           <button
             type="submit"
             disabled={!canSubmit || loading}
-            className="rounded-lg bg-gradient-to-r from-brand-600 to-indigo-500 px-4 py-2.5 font-bold text-white transition hover:from-brand-500 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-2 rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 border-2 border-yellow-400 px-4 py-3 text-lg font-black uppercase tracking-widest text-red-950 shadow-lg transition-all hover:scale-[1.02] hover:from-yellow-400 hover:to-yellow-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
           >
-            {loading ? 'Processing...' : 'Join Room'}
+            {loading ? 'Đang xử lý...' : 'VÀO PHÒNG'}
           </button>
         </form>
       </section>

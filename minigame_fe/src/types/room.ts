@@ -21,6 +21,7 @@ export interface RoomView {
   clue?: string
   maskedAnswer?: string
   usedLetters?: string
+  wrongGuessers?: string
 }
 
 export interface AdminQuestionInput {

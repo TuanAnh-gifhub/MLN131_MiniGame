@@ -13,26 +13,26 @@ export function PlayerList({ players, currentTurnPlayerId }: PlayerListProps) {
         return (
           <li
             key={player.id}
-            className={`rounded-xl border p-4 transition ${
+            className={`rounded-xl border-2 p-4 transition-all ${
               isCurrent
-                ? 'border-amber-300 bg-gradient-to-r from-amber-500/30 to-orange-500/20 shadow-[0_0_20px_rgba(251,191,36,0.25)]'
-                : 'border-slate-700 bg-slate-900/80'
+                ? 'border-yellow-400 bg-gradient-to-r from-red-800 to-red-900 shadow-[0_0_20px_rgba(234,179,8,0.3)] scale-[1.02]'
+                : 'border-red-800 bg-red-950/80 hover:bg-red-900/80'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-100">
+              <span className={`font-bold ${isCurrent ? 'text-yellow-300' : 'text-yellow-100'} text-lg tracking-wide uppercase`}>
                 #{index + 1} {player.nickname}
               </span>
-              <span className="text-sm font-semibold text-amber-200">{player.score} pts</span>
+              <span className="text-xl font-black text-yellow-400 drop-shadow-md">{player.score} <span className="text-sm font-bold text-yellow-500 uppercase tracking-widest">Điểm</span></span>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-300">
-              <span className={`rounded-full px-2 py-0.5 ${player.host ? 'bg-blue-500/20 text-blue-100' : 'bg-slate-700 text-slate-200'}`}>
-                {player.host ? 'Host' : 'Player'}
+            <div className="mt-3 flex flex-wrap gap-2 text-xs uppercase font-bold tracking-wider">
+              <span className={`rounded-full px-3 py-1 ${player.host ? 'border border-yellow-500 bg-yellow-500/20 text-yellow-300' : 'border border-red-700 bg-red-800 text-red-300'}`}>
+                {player.host ? 'Quản Trị' : 'Người Chơi'}
               </span>
-              <span className={`rounded-full px-2 py-0.5 ${player.connected ? 'bg-emerald-500/20 text-emerald-100' : 'bg-red-500/20 text-red-100'}`}>
+              <span className={`rounded-full px-3 py-1 ${player.connected ? 'border border-emerald-500 bg-emerald-500/20 text-emerald-300' : 'border border-slate-500 bg-slate-600/30 text-slate-400'}`}>
                 {player.connected ? 'Online' : 'Offline'}
               </span>
-              {isCurrent ? <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-amber-100">Current Turn</span> : null}
+              {isCurrent ? <span className="rounded-full border border-yellow-400 bg-gradient-to-r from-yellow-500 to-yellow-600 px-3 py-1 text-red-950 shadow-sm animate-pulse">Đang chơi</span> : null}
             </div>
           </li>
         )

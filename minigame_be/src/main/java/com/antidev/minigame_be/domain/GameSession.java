@@ -60,6 +60,9 @@ public class GameSession {
     @Column(name = "used_letters", length = 80)
     private String usedLetters;
 
+    @Column(name = "wrong_guessers", length = 500)
+    private String wrongGuessers;
+
     @Column(name = "current_spin_score")
     private Integer currentSpinScore;
 

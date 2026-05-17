@@ -17,38 +17,41 @@ export function ResultPage() {
 
   return (
     <AppShell
-      title="Final Result"
-      subtitle="Top players for this game session."
+      title="KẾT QUẢ CHUNG CUỘC"
+      subtitle="Bảng xếp hạng những người chơi xuất sắc nhất."
       roomCode={room?.code}
-      phase="Completed"
+      phase="Hoàn thành"
       connected={isConnected}
     >
-      <section className="rounded-2xl border border-slate-700 bg-slate-900/90 p-4">
-        {ranking.length === 0 ? <p className="text-slate-400">No result yet.</p> : null}
-        <ol className="space-y-2">
+      <section className="rounded-2xl border-2 border-yellow-500/40 bg-red-900/90 p-6 shadow-[0_0_25px_rgba(234,179,8,0.2)] mx-auto w-full max-w-2xl">
+        {ranking.length === 0 ? <p className="text-yellow-200/60 font-medium text-center">Chưa có kết quả.</p> : null}
+        <ol className="space-y-4">
           {ranking.map((player, index) => (
             <li
               key={player.id}
-              className={`flex items-center justify-between rounded-lg border p-3 ${
+              className={`flex items-center justify-between rounded-xl border-2 p-4 transition-all hover:scale-[1.01] ${
                 index === 0
-                  ? 'border-amber-300/50 bg-amber-500/15 text-amber-100'
-                  : 'border-slate-700 bg-slate-800 text-slate-100'
+                  ? 'border-yellow-400 bg-gradient-to-r from-yellow-600 to-yellow-500 text-red-950 shadow-[0_0_15px_rgba(234,179,8,0.4)] scale-[1.02]'
+                  : 'border-red-800 bg-red-950/80 text-yellow-100 hover:bg-red-900/80'
               }`}
             >
-              <span>
-                #{index + 1} {player.nickname}
+              <span className={`font-black text-lg uppercase tracking-wider ${index === 0 ? 'text-red-950 drop-shadow-sm' : 'text-yellow-300'}`}>
+                Hạng {index + 1}: {player.nickname}
+                {index === 0 && <span className="ml-2">🏆</span>}
               </span>
-              <span className="font-semibold">{player.score} pts</span>
+              <span className={`font-black text-xl ${index === 0 ? 'text-red-950' : 'text-yellow-400 drop-shadow-md'}`}>{player.score} <span className="text-sm tracking-widest uppercase">Điểm</span></span>
             </li>
           ))}
         </ol>
 
-        <Link
-          to="/"
-          className="mt-4 inline-block rounded-lg bg-gradient-to-r from-brand-600 to-indigo-500 px-4 py-2 font-semibold text-white hover:from-brand-500 hover:to-indigo-400"
-        >
-          Back to Join
-        </Link>
+        <div className="mt-8 text-center">
+          <Link
+            to="/"
+            className="inline-block rounded-full bg-gradient-to-b from-red-600 to-red-800 border-2 border-yellow-500 px-8 py-3 text-lg font-black uppercase tracking-widest text-yellow-300 shadow-[0_5px_15px_rgba(220,38,38,0.5)] transition-all hover:scale-105 hover:from-red-500 hover:to-red-700 active:scale-95"
+          >
+            QUAY VỀ TRANG CHỦ
+          </Link>
+        </div>
       </section>
     </AppShell>
   )

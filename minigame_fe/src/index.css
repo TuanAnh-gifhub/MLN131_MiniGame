@@ -18,19 +18,19 @@ body {
 
 @layer components {
   .chip {
-    @apply rounded-full border border-slate-600 bg-slate-800/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-200;
+    @apply rounded-full border border-yellow-500/50 bg-red-900/80 px-3 py-1 text-xs font-bold uppercase tracking-wide text-yellow-300 shadow-sm;
   }
 
   .chip-brand {
-    @apply border-blue-400/60 bg-blue-500/20 text-blue-100;
+    @apply border-yellow-400 bg-yellow-500/20 text-yellow-200;
   }
 
   .chip-ok {
-    @apply border-emerald-400/60 bg-emerald-500/20 text-emerald-100;
+    @apply border-emerald-500 bg-emerald-600/30 text-emerald-300;
   }
 
   .chip-bad {
-    @apply border-red-400/60 bg-red-500/20 text-red-100;
+    @apply border-red-500 bg-red-600/30 text-red-300;
   }
 }
 

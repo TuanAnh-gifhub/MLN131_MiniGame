@@ -51,14 +51,57 @@ public class GameEngineService {
         List<Player> players = playerRepository.findByRoomCodeOrderByJoinedAtAsc(roomCode);
         Player actor = findActor(players, message.actor());
 
-        if (!actor.getId().equals(session.getCurrentTurnPlayerId())) {
-            throw new ApiException(HttpStatus.CONFLICT, "Not your turn");
+        if (message.eventType() == GameEventType.GUESS_LETTER) {
+            if (!actor.getId().equals(session.getCurrentTurnPlayerId())) {
+                throw new ApiException(HttpStatus.CONFLICT, "Not your turn");
+            }
+            handleGuessLetterEvent(session, players, actor, message.payload());
+            return;
         }
 
-        switch (message.eventType()) {
-            case GUESS_LETTER -> handleGuessLetterEvent(session, players, actor, message.payload());
-            case GUESS_ANSWER -> handleGuessAnswer(session, players, actor, message.payload());
-            default -> throw new ApiException(HttpStatus.BAD_REQUEST, "Unsupported event for game engine");
+        if (message.eventType() == GameEventType.GUESS_ANSWER) {
+            handleGuessAnswer(session, players, actor, message.payload());
+            return;
+        }
+    }
+
+    @Transactional
+    public void handleAdminEvent(String roomCodeRaw, GameInboundMessage message) {
+        String roomCode = roomCodeRaw.toUpperCase(Locale.ROOT);
+        GameSession session = getActiveSession(roomCode);
+        List<Player> players = playerRepository.findByRoomCodeOrderByJoinedAtAsc(roomCode);
+        Player actor = findActor(players, message.actor());
+
+        if (!actor.isHost()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only host can perform admin actions");
+        }
+
+        Instant now = Instant.now();
+        if (message.eventType() == GameEventType.ADMIN_SKIP_TURN) {
+            rotateTurnByTimeout(session, players, now);
+        } else if (message.eventType() == GameEventType.ADMIN_START_TIMER) {
+            messagingTemplate.convertAndSend(
+                "/topic/rooms/" + roomCode,
+                new GameOutboundMessage(
+                    GameEventType.ADMIN_START_TIMER,
+                    roomCode,
+                    actor.getNickname(),
+                    Map.of("timeoutSeconds", 45),
+                    now
+                )
+            );
+        } else if (message.eventType() == GameEventType.ADMIN_PAUSE_TIMER) {
+            boolean isPaused = Boolean.parseBoolean(message.payload());
+            messagingTemplate.convertAndSend(
+                "/topic/rooms/" + roomCode,
+                new GameOutboundMessage(
+                    GameEventType.ADMIN_PAUSE_TIMER,
+                    roomCode,
+                    actor.getNickname(),
+                    Map.of("isPaused", isPaused),
+                    now
+                )
+            );
         }
     }
 
@@ -138,6 +181,10 @@ public class GameEngineService {
     }
 
     private void handleGuessAnswer(GameSession session, List<Player> players, Player actor, String payload) {
+        if (session.getWrongGuessers() != null && session.getWrongGuessers().contains(actor.getId().toString())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Bạn đã đoán sai đáp án ở vòng này và không được đoán lại");
+        }
+
         String guess = payload == null ? "" : payload.trim().toUpperCase(Locale.ROOT);
         if (guess.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Answer guess cannot be blank");
@@ -146,10 +193,25 @@ public class GameEngineService {
         Instant now = Instant.now();
         String expected = normalizeAnswer(session.getCurrentAnswer());
         if (!normalizeAnswer(guess).equals(expected)) {
-            advanceTurn(session, players, now, "WRONG_ANSWER");
-            sendGameUpdate(session, "WRONG_ANSWER", now);
+            // Add to wrong guessers
+            String wg = session.getWrongGuessers() == null ? "" : session.getWrongGuessers();
+            session.setWrongGuessers(wg + (wg.isEmpty() ? "" : ",") + actor.getId().toString());
+
+            // Lose all score
+            actor.setScore(0);
+            playerRepository.save(actor);
+
+            // If it is their turn, advance it
+            if (actor.getId().equals(session.getCurrentTurnPlayerId())) {
+                advanceTurn(session, players, now, "WRONG_ANSWER_BANKRUPT");
+            }
+            sendGameUpdate(session, "WRONG_ANSWER_BANKRUPT", now);
             return;
         }
+
+        // Player gets 5000 total for guessing the whole answer correctly (finishRound will add 1000)
+        actor.setScore(actor.getScore() + 4000);
+        playerRepository.save(actor);
 
         finishRound(session, actor, now, "BINGO");
     }
@@ -223,6 +285,7 @@ public class GameEngineService {
         session.setCurrentAnswer(answer);
         session.setMaskedAnswer(mask(answer));
         session.setUsedLetters("");
+        session.setWrongGuessers("");
         session.setCurrentSpinScore(null);
         session.setSpinRequired(true);
     }
@@ -367,7 +430,7 @@ public class GameEngineService {
                 "system",
                 Map.of(
                     "nextPlayerId", nextPlayerId,
-                    "timeoutSeconds", 10,
+                    "timeoutSeconds", 45,
                     "reason", reason,
                     "currentRound", session.getCurrentRound(),
                     "totalRounds", session.getTotalRounds()
@@ -395,8 +458,14 @@ public class GameEngineService {
         if (session.getUsedLetters() != null) {
             payload.put("usedLetters", session.getUsedLetters());
         }
+        if (session.getWrongGuessers() != null) {
+            payload.put("wrongGuessers", session.getWrongGuessers());
+        }
         if (session.getCurrentSpinScore() != null) {
             payload.put("spinScore", session.getCurrentSpinScore());
+        }
+        if ("CORRECT_LETTER".equals(reason)) {
+            payload.put("timeoutSeconds", 45);
         }
 
         messagingTemplate.convertAndSend(

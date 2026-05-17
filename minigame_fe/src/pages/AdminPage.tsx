@@ -98,12 +98,12 @@ export function AdminPage() {
   }
 
   return (
-    <AppShell title="Admin Setup" subtitle="Tao phong, set ma phong va nhap cau hoi/dap an.">
-      <form onSubmit={onSubmit} className="mx-auto grid w-full max-w-3xl gap-4 rounded-2xl border border-slate-700 bg-slate-900/90 p-6">
+    <AppShell title="TẠO PHÒNG MỚI" subtitle="Nhập tên, mã phòng và danh sách câu hỏi để bắt đầu.">
+      <form onSubmit={onSubmit} className="mx-auto grid w-full max-w-3xl gap-5 rounded-2xl border-2 border-yellow-500/40 bg-red-900/90 p-8 shadow-[0_0_25px_rgba(234,179,8,0.2)]">
         <label className="grid gap-2">
-          <span className="text-sm text-slate-300">Admin / Host Nickname</span>
+          <span className="text-sm font-bold uppercase tracking-wider text-yellow-300">Tên Quản Trò (Admin)</span>
           <input
-            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 outline-none transition focus:border-brand-500"
+            className="rounded-lg border-2 border-red-800 bg-red-950 px-4 py-3 font-semibold text-white outline-none transition focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-red-400/50"
             value={hostNickname}
             onChange={(e) => setHostNickname(e.target.value)}
             placeholder="admin_1"
@@ -112,9 +112,9 @@ export function AdminPage() {
         </label>
 
         <label className="grid gap-2">
-          <span className="text-sm text-slate-300">Room Code (optional)</span>
+          <span className="text-sm font-bold uppercase tracking-wider text-yellow-300">Mã Phòng (Không bắt buộc)</span>
           <input
-            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 uppercase outline-none transition focus:border-brand-500"
+            className="rounded-lg border-2 border-red-800 bg-red-950 px-4 py-3 font-mono font-bold text-white uppercase outline-none transition focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 placeholder-red-400/50 tracking-widest"
             value={roomCode}
             onChange={(e) => setRoomCode(e.target.value)}
             placeholder="ABCD12"
@@ -124,35 +124,35 @@ export function AdminPage() {
 
         <div className="space-y-3">
           {questions.map((item, index) => (
-            <div key={index} className="grid gap-3 rounded-xl border border-slate-700 bg-slate-950/60 p-4">
+            <div key={index} className="grid gap-4 rounded-xl border border-yellow-500/30 bg-red-950/60 p-5 shadow-inner">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-200">Question #{index + 1}</p>
+                <p className="text-base font-black text-yellow-300 uppercase tracking-widest">Câu hỏi #{index + 1}</p>
                 <button
                   type="button"
                   onClick={() => removeQuestion(index)}
-                  className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-1 text-xs text-red-100 hover:bg-red-500/20"
+                  className="rounded-lg border border-red-500 bg-red-600/80 px-3 py-1 text-xs font-bold text-white shadow-sm hover:bg-red-500"
                 >
-                  Remove
+                  Xóa
                 </button>
               </div>
 
               <input
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
-                placeholder="Category"
+                className="rounded-lg border-2 border-red-800 bg-red-900 px-4 py-2 text-sm text-white placeholder-red-300 focus:border-yellow-500 outline-none transition"
+                placeholder="Chủ đề (VD: Lịch sử, Tư tưởng)"
                 value={item.category}
                 onChange={(e) => updateQuestion(index, { category: e.target.value })}
                 maxLength={100}
               />
               <input
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
-                placeholder="Clue"
+                className="rounded-lg border-2 border-red-800 bg-red-900 px-4 py-2 text-sm text-white placeholder-red-300 focus:border-yellow-500 outline-none transition"
+                placeholder="Gợi ý câu hỏi"
                 value={item.clue}
                 onChange={(e) => updateQuestion(index, { clue: e.target.value })}
                 maxLength={300}
               />
               <input
-                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm uppercase"
-                placeholder="Answer"
+                className="rounded-lg border-2 border-red-800 bg-red-900 px-4 py-2 text-sm font-bold uppercase text-yellow-100 placeholder-red-300 focus:border-yellow-500 outline-none transition tracking-wider"
+                placeholder="ĐÁP ÁN"
                 value={item.answer}
                 onChange={(e) => updateQuestion(index, { answer: e.target.value })}
                 maxLength={200}
@@ -164,19 +164,19 @@ export function AdminPage() {
         <button
           type="button"
           onClick={addQuestion}
-          className="w-fit rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-100 hover:bg-emerald-500/20"
+          className="w-fit rounded-lg border border-yellow-400/40 bg-yellow-500/20 px-4 py-2 text-sm font-bold text-yellow-200 hover:bg-yellow-500/40"
         >
-          + Add Question
+          + Thêm Câu Hỏi
         </button>
 
-        {error ? <p className="rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-sm text-red-200">{error}</p> : null}
+        {error ? <p className="rounded-lg border-2 border-orange-500/50 bg-orange-500/20 p-3 text-sm font-bold text-orange-200">{error}</p> : null}
 
         <button
           type="submit"
           disabled={!canSubmit || loading}
-          className="rounded-lg bg-gradient-to-r from-brand-600 to-indigo-500 px-4 py-2.5 font-bold text-white transition hover:from-brand-500 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-2 rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 border-2 border-yellow-400 px-4 py-3 text-lg font-black uppercase tracking-widest text-red-950 shadow-lg transition-all hover:scale-[1.02] hover:from-yellow-400 hover:to-yellow-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
         >
-          {loading ? 'Processing...' : 'Create Room & Continue'}
+          {loading ? 'Đang xử lý...' : 'TẠO PHÒNG & TIẾP TỤC'}
         </button>
       </form>
     </AppShell>

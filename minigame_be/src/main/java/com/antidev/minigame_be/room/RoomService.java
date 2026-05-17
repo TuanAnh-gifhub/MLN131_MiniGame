@@ -108,7 +108,8 @@ public class RoomService {
             latest != null ? latest.getTotalRounds() : null,
             latest != null ? latest.getCurrentClue() : null,
             latest != null ? latest.getMaskedAnswer() : null,
-            latest != null ? latest.getUsedLetters() : null
+            latest != null ? latest.getUsedLetters() : null,
+            latest != null ? latest.getWrongGuessers() : null
         );
     }
 
