@@ -5,6 +5,7 @@ import { PlayerList } from '../components/PlayerList'
 import { useRealtimeRoom } from '../hooks/useRealtimeRoom'
 import { useRoomPolling } from '../hooks/useRoomPolling'
 import { startRoom } from '../services/roomService'
+import { adminKickPlayer } from '../services/roomService'
 import { socketClient } from '../services/socketClient'
 import { useGameStore } from '../store/useGameStore'
 import { useRoomStore } from '../store/useRoomStore'
@@ -64,6 +65,17 @@ export function WaitingRoomPage() {
     }
   }
 
+  const onKickPlayer = async (targetId: string) => {
+    try {
+      setError(undefined)
+      const next = await adminKickPlayer(roomCode, targetId)
+      setRoom(next)
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Không thể kích người chơi'
+      setError(message)
+    }
+  }
+
   return (
     <AppShell
       title={`Phòng chờ ${roomCode}`}
@@ -86,7 +98,29 @@ export function WaitingRoomPage() {
             <span className="chip chip-brand">Chủ phòng: {room?.hostNickname ?? '--'}</span>
           </div>
 
-          {room ? <PlayerList players={room.players} /> : <p className="text-yellow-200/60 font-medium">Đang tải phòng...</p>}
+          {room ? (
+            <PlayerList
+              players={room.players}
+              renderActions={(player) => {
+                if (!isHost) {
+                  return null
+                }
+                const disableKick = playerId ? player.id === playerId : false
+                return (
+                  <button
+                    type="button"
+                    onClick={() => onKickPlayer(player.id)}
+                    disabled={disableKick}
+                    className="rounded-md border border-red-500/70 bg-red-600/80 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Kick
+                  </button>
+                )
+              }}
+            />
+          ) : (
+            <p className="text-yellow-200/60 font-medium">Đang tải phòng...</p>
+          )}
           {error ? (
             <p className="mt-3 rounded-lg border-2 border-orange-500/50 bg-orange-500/20 p-3 text-sm font-bold text-orange-200">{error}</p>
           ) : null}

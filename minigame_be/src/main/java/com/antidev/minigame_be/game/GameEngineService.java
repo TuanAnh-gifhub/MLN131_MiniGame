@@ -48,7 +48,10 @@ public class GameEngineService {
     @Transactional
     public void handleClientEvent(String roomCodeRaw, GameInboundMessage message) {
         String roomCode = roomCodeRaw.toUpperCase(Locale.ROOT);
-        GameSession session = getActiveSession(roomCode);
+        GameSession session = getManagedSession(roomCode);
+        if (session.getStatus() == GameSessionStatus.PAUSED) {
+            throw new ApiException(HttpStatus.CONFLICT, "Game is paused");
+        }
         List<Player> players = playerRepository.findByRoomCodeOrderByJoinedAtAsc(roomCode);
         Player actor = findActor(players, message.actor());
 
@@ -67,6 +70,9 @@ public class GameEngineService {
 
     @Transactional
     public void rotateTurnByTimeout(GameSession session, List<Player> players, Instant now) {
+        if (session.getStatus() != GameSessionStatus.IN_PROGRESS) {
+            return;
+        }
         if (players.isEmpty()) {
             return;
         }
@@ -216,7 +222,7 @@ public class GameEngineService {
         sendRoundEnd(session, winner, reason, now);
 
         if (session.getCurrentRound() >= session.getTotalRounds()) {
-            endGame(session, now, winner);
+            endGame(session, now, winner, "FINAL_ROUND_COMPLETED");
             return;
         }
 
@@ -281,7 +287,7 @@ public class GameEngineService {
         session.setBellUsedPlayerIds("");
     }
 
-    private void endGame(GameSession session, Instant now, Player winner) {
+    private void endGame(GameSession session, Instant now, Player winner, String reason) {
         session.setStatus(GameSessionStatus.ENDED);
         session.setEndedAt(now);
 
@@ -289,19 +295,22 @@ public class GameEngineService {
         room.setStatus(RoomStatus.FINISHED);
         roomRepository.save(room);
 
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("reason", reason);
+        payload.put("currentRound", session.getCurrentRound());
+        payload.put("totalRounds", session.getTotalRounds());
+        if (winner != null) {
+            payload.put("winnerId", winner.getId());
+            payload.put("winnerNickname", winner.getNickname());
+        }
+
         messagingTemplate.convertAndSend(
             "/topic/rooms/" + room.getCode(),
             new GameOutboundMessage(
                 GameEventType.GAME_END,
                 room.getCode(),
                 "system",
-                Map.of(
-                    "reason", "FINAL_ROUND_COMPLETED",
-                    "winnerId", winner.getId(),
-                    "winnerNickname", winner.getNickname(),
-                    "currentRound", session.getCurrentRound(),
-                    "totalRounds", session.getTotalRounds()
-                ),
+                payload,
                 now
             )
         );
@@ -310,6 +319,55 @@ public class GameEngineService {
     private GameSession getActiveSession(String roomCode) {
         return gameSessionRepository.findFirstByRoomCodeAndStatusOrderByStartedAtDesc(roomCode, GameSessionStatus.IN_PROGRESS)
             .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "No active game session in room"));
+    }
+
+    private GameSession getManagedSession(String roomCode) {
+        return gameSessionRepository.findFirstByRoomCodeAndStatusInOrderByStartedAtDesc(
+                roomCode,
+                List.of(GameSessionStatus.IN_PROGRESS, GameSessionStatus.PAUSED)
+            )
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "No active game session in room"));
+    }
+
+    private Player selectTopScorer(List<Player> players) {
+        if (players.isEmpty()) {
+            return null;
+        }
+        Player best = players.get(0);
+        for (int i = 1; i < players.size(); i++) {
+            Player candidate = players.get(i);
+            if (candidate.getScore() > best.getScore()) {
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    private UUID resolveNextTurnPlayerId(List<Player> players, UUID currentPlayerId) {
+        if (players.isEmpty()) {
+            return null;
+        }
+        if (currentPlayerId == null) {
+            return players.get(0).getId();
+        }
+        boolean exists = players.stream().anyMatch(player -> player.getId().equals(currentPlayerId));
+        if (!exists) {
+            return players.get(0).getId();
+        }
+        return nextPlayer(players, currentPlayerId).getId();
+    }
+
+    private void sendAdminEvent(GameEventType eventType, String roomCode, Map<String, Object> payload, Instant now) {
+        messagingTemplate.convertAndSend(
+            "/topic/rooms/" + roomCode,
+            new GameOutboundMessage(
+                eventType,
+                roomCode,
+                "admin",
+                payload,
+                now
+            )
+        );
     }
 
     private Player findActor(List<Player> players, String actorNickname) {
@@ -505,22 +563,206 @@ public class GameEngineService {
     }
 
     private void sendRoundEnd(GameSession session, Player winner, String reason, Instant now) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("reason", reason);
+        payload.put("answer", session.getCurrentAnswer());
+        payload.put("currentRound", session.getCurrentRound());
+        payload.put("totalRounds", session.getTotalRounds());
+        if (winner != null) {
+            payload.put("winnerId", winner.getId());
+            payload.put("winnerNickname", winner.getNickname());
+        }
+
         messagingTemplate.convertAndSend(
             "/topic/rooms/" + session.getRoom().getCode(),
             new GameOutboundMessage(
                 GameEventType.ROUND_END,
                 session.getRoom().getCode(),
                 "system",
-                Map.of(
-                    "reason", reason,
-                    "winnerId", winner.getId(),
-                    "winnerNickname", winner.getNickname(),
-                    "answer", session.getCurrentAnswer(),
-                    "currentRound", session.getCurrentRound(),
-                    "totalRounds", session.getTotalRounds()
-                ),
+                payload,
                 now
             )
         );
+    }
+
+    @Transactional
+    public void pauseGame(String roomCodeRaw) {
+        String roomCode = roomCodeRaw.toUpperCase(Locale.ROOT);
+        GameSession session = getManagedSession(roomCode);
+        if (session.getStatus() == GameSessionStatus.PAUSED) {
+            return;
+        }
+        Instant now = Instant.now();
+        session.setStatus(GameSessionStatus.PAUSED);
+        session.setLastTurnAt(now);
+        sendAdminEvent(GameEventType.ADMIN_PAUSE, roomCode, Map.of("reason", "ADMIN_PAUSE"), now);
+    }
+
+    @Transactional
+    public void resumeGame(String roomCodeRaw) {
+        String roomCode = roomCodeRaw.toUpperCase(Locale.ROOT);
+        GameSession session = getManagedSession(roomCode);
+        if (session.getStatus() != GameSessionStatus.PAUSED) {
+            throw new ApiException(HttpStatus.CONFLICT, "Game is not paused");
+        }
+
+        Instant now = Instant.now();
+        session.setStatus(GameSessionStatus.IN_PROGRESS);
+        List<Player> players = playerRepository.findByRoomCodeOrderByJoinedAtAsc(roomCode);
+        if (session.getCurrentTurnPlayerId() == null && !players.isEmpty()) {
+            session.setCurrentTurnPlayerId(players.get(0).getId());
+        }
+        session.setLastTurnAt(now);
+
+        if (session.getCurrentTurnPlayerId() != null) {
+            sendTurnChange(session, session.getCurrentTurnPlayerId(), "RESUME", now);
+        }
+        sendAdminEvent(GameEventType.ADMIN_RESUME, roomCode, Map.of("reason", "ADMIN_RESUME"), now);
+        sendGameUpdate(session, "RESUME", now);
+    }
+
+    @Transactional
+    public void adminEndGame(String roomCodeRaw, String reason) {
+        String roomCode = roomCodeRaw.toUpperCase(Locale.ROOT);
+        GameSession session = getManagedSession(roomCode);
+        List<Player> players = playerRepository.findByRoomCodeOrderByJoinedAtAsc(roomCode);
+        Player winner = selectTopScorer(players);
+        Instant now = Instant.now();
+        endGame(session, now, winner, reason);
+        sendAdminEvent(GameEventType.ADMIN_END, roomCode, Map.of("reason", reason), now);
+    }
+
+    @Transactional
+    public void adminSkipQuestion(String roomCodeRaw) {
+        String roomCode = roomCodeRaw.toUpperCase(Locale.ROOT);
+        GameSession session = getManagedSession(roomCode);
+        List<Player> players = playerRepository.findByRoomCodeOrderByJoinedAtAsc(roomCode);
+        Instant now = Instant.now();
+
+        sendRoundEnd(session, null, "ADMIN_SKIP_QUESTION", now);
+        sendAdminEvent(GameEventType.ADMIN_SKIP_QUESTION, roomCode, Map.of("reason", "ADMIN_SKIP_QUESTION"), now);
+
+        if (session.getCurrentRound() >= session.getTotalRounds()) {
+            Player winner = selectTopScorer(players);
+            endGame(session, now, winner, "ADMIN_SKIP_QUESTION");
+            return;
+        }
+
+        int nextRound = session.getCurrentRound() + 1;
+        initializeRound(session, nextRound);
+        UUID nextPlayerId = resolveNextTurnPlayerId(players, session.getCurrentTurnPlayerId());
+        session.setCurrentTurnPlayerId(nextPlayerId);
+        session.setLastTurnAt(now);
+
+        if (nextPlayerId != null) {
+            sendTurnChange(session, nextPlayerId, "ADMIN_SKIP_QUESTION", now);
+        }
+        sendGameUpdate(session, "ROUND_STARTED", now);
+    }
+
+    @Transactional
+    public void adminSkipTurn(String roomCodeRaw, UUID playerId) {
+        String roomCode = roomCodeRaw.toUpperCase(Locale.ROOT);
+        GameSession session = getManagedSession(roomCode);
+        List<Player> players = playerRepository.findByRoomCodeOrderByJoinedAtAsc(roomCode);
+        if (players.isEmpty()) {
+            throw new ApiException(HttpStatus.CONFLICT, "No players in room");
+        }
+
+        UUID targetId = playerId != null ? playerId : session.getCurrentTurnPlayerId();
+        if (targetId == null) {
+            throw new ApiException(HttpStatus.CONFLICT, "No active turn to skip");
+        }
+        if (!targetId.equals(session.getCurrentTurnPlayerId())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Can only skip the current turn");
+        }
+
+        Player target = players.stream()
+            .filter(player -> player.getId().equals(targetId))
+            .findFirst()
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Target player not found"));
+
+        Player next = nextPlayer(players, targetId);
+        Instant now = Instant.now();
+        session.setCurrentTurnPlayerId(next.getId());
+        session.setCurrentSpinScore(null);
+        session.setSpinRequired(true);
+        session.setLastTurnAt(now);
+
+        sendTurnChange(session, next.getId(), "ADMIN_SKIP_TURN", now);
+        sendAdminEvent(GameEventType.ADMIN_SKIP_TURN, roomCode, Map.of(
+            "targetPlayerId", targetId,
+            "targetNickname", target.getNickname()
+        ), now);
+        sendGameUpdate(session, "ADMIN_SKIP_TURN", now, target.getNickname());
+    }
+
+    @Transactional
+    public void adminResetBell(String roomCodeRaw, UUID playerId) {
+        String roomCode = roomCodeRaw.toUpperCase(Locale.ROOT);
+        GameSession session = getManagedSession(roomCode);
+        Set<UUID> usedPlayers = readBellUsedPlayerIds(session.getBellUsedPlayerIds());
+        usedPlayers.remove(playerId);
+        session.setBellUsedPlayerIds(serializeBellUsedPlayerIds(usedPlayers));
+        if (playerId != null && playerId.equals(session.getActiveBellPlayerId())) {
+            session.setActiveBellPlayerId(null);
+        }
+
+        Instant now = Instant.now();
+        session.setLastTurnAt(now);
+        sendAdminEvent(GameEventType.ADMIN_RESET_BELL, roomCode, Map.of("targetPlayerId", playerId), now);
+        sendGameUpdate(session, "ADMIN_RESET_BELL", now);
+    }
+
+    @Transactional
+    public void adminKickPlayer(String roomCodeRaw, UUID playerId) {
+        String roomCode = roomCodeRaw.toUpperCase(Locale.ROOT);
+        List<Player> playersBefore = playerRepository.findByRoomCodeOrderByJoinedAtAsc(roomCode);
+        Player target = playersBefore.stream()
+            .filter(player -> player.getId().equals(playerId))
+            .findFirst()
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Player not found in room"));
+
+        Player nextAfterTarget = playersBefore.size() > 1 ? nextPlayer(playersBefore, target.getId()) : null;
+        Room room = target.getRoom();
+        playerRepository.delete(target);
+
+        Instant now = Instant.now();
+        sendAdminEvent(GameEventType.ADMIN_KICK_PLAYER, roomCode, Map.of(
+            "targetPlayerId", playerId,
+            "targetNickname", target.getNickname()
+        ), now);
+
+        if (room.getStatus() != RoomStatus.PLAYING) {
+            return;
+        }
+
+        GameSession session = getManagedSession(roomCode);
+        List<Player> playersAfter = playerRepository.findByRoomCodeOrderByJoinedAtAsc(roomCode);
+        Set<UUID> usedPlayers = readBellUsedPlayerIds(session.getBellUsedPlayerIds());
+        usedPlayers.remove(playerId);
+        session.setBellUsedPlayerIds(serializeBellUsedPlayerIds(usedPlayers));
+        UUID activeBellPlayerId = session.getActiveBellPlayerId();
+        if (activeBellPlayerId != null) {
+            boolean activeBellStillPresent = playersAfter.stream().anyMatch(player -> player.getId().equals(activeBellPlayerId));
+            if (!activeBellStillPresent || playerId.equals(activeBellPlayerId)) {
+                session.setActiveBellPlayerId(null);
+            }
+        }
+
+        if (playersAfter.size() < 2) {
+            Player winner = selectTopScorer(playersAfter);
+            endGame(session, now, winner, "ADMIN_END_NOT_ENOUGH_PLAYERS");
+            return;
+        }
+
+        if (playerId.equals(session.getCurrentTurnPlayerId())) {
+            UUID nextPlayerId = nextAfterTarget != null ? nextAfterTarget.getId() : playersAfter.get(0).getId();
+            session.setCurrentTurnPlayerId(nextPlayerId);
+            session.setCurrentSpinScore(null);
+            session.setSpinRequired(true);
+            session.setLastTurnAt(now);
+            sendTurnChange(session, nextPlayerId, "ADMIN_KICK_PLAYER", now);
+        }
     }
 }

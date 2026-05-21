@@ -1,4 +1,5 @@
 export type RoomStatus = 'WAITING' | 'PLAYING' | 'FINISHED'
+export type GameSessionStatus = 'WAITING' | 'IN_PROGRESS' | 'PAUSED' | 'ENDED'
 
 export interface PlayerView {
   id: string
@@ -14,6 +15,7 @@ export interface RoomView {
   code: string
   hostNickname: string
   status: RoomStatus
+  gameStatus?: GameSessionStatus
   players: PlayerView[]
   currentTurnPlayerId?: string
   currentRound?: number

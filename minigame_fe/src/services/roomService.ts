@@ -32,3 +32,45 @@ export function createAdminRoom(input: AdminCreateRoomInput): Promise<RoomView> 
   })
 }
 
+export function adminPauseRoom(roomCode: string): Promise<RoomView> {
+  return apiRequest<RoomView>(`/api/v1/admin/rooms/${roomCode}/pause`, {
+    method: 'POST',
+  })
+}
+
+export function adminResumeRoom(roomCode: string): Promise<RoomView> {
+  return apiRequest<RoomView>(`/api/v1/admin/rooms/${roomCode}/resume`, {
+    method: 'POST',
+  })
+}
+
+export function adminEndRoom(roomCode: string): Promise<RoomView> {
+  return apiRequest<RoomView>(`/api/v1/admin/rooms/${roomCode}/end`, {
+    method: 'POST',
+  })
+}
+
+export function adminSkipQuestion(roomCode: string): Promise<RoomView> {
+  return apiRequest<RoomView>(`/api/v1/admin/rooms/${roomCode}/skip-question`, {
+    method: 'POST',
+  })
+}
+
+export function adminSkipTurn(roomCode: string, playerId?: string): Promise<RoomView> {
+  const query = playerId ? `?playerId=${encodeURIComponent(playerId)}` : ''
+  return apiRequest<RoomView>(`/api/v1/admin/rooms/${roomCode}/skip-turn${query}`, {
+    method: 'POST',
+  })
+}
+
+export function adminResetBell(roomCode: string, playerId: string): Promise<RoomView> {
+  return apiRequest<RoomView>(`/api/v1/admin/rooms/${roomCode}/reset-bell/${playerId}`, {
+    method: 'POST',
+  })
+}
+
+export function adminKickPlayer(roomCode: string, playerId: string): Promise<RoomView> {
+  return apiRequest<RoomView>(`/api/v1/admin/rooms/${roomCode}/players/${playerId}`, {
+    method: 'DELETE',
+  })
+}

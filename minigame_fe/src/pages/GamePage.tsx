@@ -4,10 +4,12 @@ import { AppShell } from '../components/AppShell'
 import { PlayerList } from '../components/PlayerList'
 import { useRealtimeRoom } from '../hooks/useRealtimeRoom'
 import { useRoomPolling } from '../hooks/useRoomPolling'
+import { adminEndRoom, adminKickPlayer, adminPauseRoom, adminResetBell, adminResumeRoom, adminSkipQuestion, adminSkipTurn } from '../services/roomService'
 import { socketClient } from '../services/socketClient'
 import { useGameStore } from '../store/useGameStore'
 import { useRoomStore } from '../store/useRoomStore'
 import { useSessionStore } from '../store/useSessionStore'
+import type { RoomView } from '../types/room'
 const GAME_ALPHABET = 'ABCDEFGHIKLMNOPQRSTUVXY'
 const TURN_TIMEOUT_SECONDS = 60
 const SPIN_OUTCOMES = [100, 200, 300, 400, 500, 600, 700, 800, 0, -1]
@@ -29,12 +31,14 @@ export function GamePage() {
   const roomCode = params.roomCode ?? ''
 
   const room = useRoomStore((s) => s.room)
+  const setRoom = useRoomStore((s) => s.setRoom)
   const currentTurnPlayerId = useGameStore((s) => s.currentTurnPlayerId)
   const isConnected = useGameStore((s) => s.isConnected)
   const feed = useGameStore((s) => s.feed)
   const nickname = useSessionStore((s) => s.nickname)
   const playerId = useSessionStore((s) => s.playerId)
   const isHost = useSessionStore((s) => s.isHost)
+  const [adminError, setAdminError] = useState<string>()
 
 interface CompletedRoundInfo {
   roundNumber: number
@@ -42,6 +46,7 @@ interface CompletedRoundInfo {
   clue: string
   answer: string
   winnerNickname: string
+  reason?: string
 }
 
   const [fullAnswer, setFullAnswer] = useState('')
@@ -79,9 +84,11 @@ interface CompletedRoundInfo {
   const bellUsedPlayerIds = room?.bellUsedPlayerIds ?? []
   const isMyTurn = activeTurnPlayerId && playerId ? activeTurnPlayerId === playerId : false
   const isObserver = isHost && !playerId
-  const canPlay = Boolean(playerId) && Boolean(isConnected) && isMyTurn
+  const isPaused = room?.gameStatus === 'PAUSED'
+  const canPlay = Boolean(playerId) && Boolean(isConnected) && isMyTurn && !isPaused
   const bellUsedByMe = Boolean(playerId && bellUsedPlayerIds.includes(playerId))
-  const canRingBell = Boolean(playerId) && Boolean(isConnected) && !wheelSpinning && !activeBellPlayerId && !bellUsedByMe
+  const canRingBell = Boolean(playerId) && Boolean(isConnected) && !wheelSpinning && !activeBellPlayerId && !bellUsedByMe && !isPaused
+
   const displayName = nickname.trim() || room?.players.find((player) => player.id === playerId)?.nickname || 'Chưa xác định'
 
   const usedLetters = useMemo(
@@ -118,6 +125,10 @@ interface CompletedRoundInfo {
   }, [activeBellPlayerId, room?.players])
 
   useEffect(() => {
+    if (isPaused) {
+      setRemainingSeconds(TURN_TIMEOUT_SECONDS)
+      return
+    }
     if (!room?.lastTurnAt || !activeTurnPlayerId) {
       setRemainingSeconds(TURN_TIMEOUT_SECONDS)
       return
@@ -133,7 +144,7 @@ interface CompletedRoundInfo {
     tick()
     const timerId = window.setInterval(tick, 1000)
     return () => window.clearInterval(timerId)
-  }, [activeTurnPlayerId, room?.lastTurnAt])
+  }, [activeTurnPlayerId, room?.lastTurnAt, isPaused])
 
   useEffect(() => {
     const latest = feed[0]
@@ -300,10 +311,16 @@ interface CompletedRoundInfo {
         tone: 'warn',
       }
     } else if (latest.eventType === 'ROUND_END') {
-      nextNotice = {
-        text: `${(winnerNickname ?? actorLabel) === 'system' ? 'Có người' : `Người chơi: ${winnerNickname ?? actorLabel}`} đã chốt đáp án đúng`,
-        tone: 'ok',
-      }
+      const isAdminSkip = reason === 'ADMIN_SKIP_QUESTION'
+      nextNotice = isAdminSkip
+        ? {
+            text: 'Quản trị đã bỏ qua câu hỏi này.',
+            tone: 'info',
+          }
+        : {
+            text: `${(winnerNickname ?? actorLabel) === 'system' ? 'Có người' : `Người chơi: ${winnerNickname ?? actorLabel}`} đã chốt đáp án đúng`,
+            tone: 'ok',
+          }
 
       // Capture and show completed round board
       const answer = latest.payload?.answer ?? ''
@@ -311,12 +328,14 @@ interface CompletedRoundInfo {
       const totalRounds = latest.payload?.totalRounds ?? room?.totalRounds ?? 1
       const clue = room?.clue ?? ''
 
+      const resolvedWinner = isAdminSkip ? 'Quản trị' : winnerNickname ?? actorLabel
       setCompletedRound({
         roundNumber,
         totalRounds,
         clue,
         answer,
-        winnerNickname: winnerNickname ?? actorLabel,
+        winnerNickname: resolvedWinner,
+        reason,
       })
 
       if (completedRoundTimerRef.current !== null) {
@@ -447,12 +466,30 @@ interface CompletedRoundInfo {
     setFullAnswer('')
   }
 
+  const applyAdminUpdate = async (request: Promise<RoomView>, fallbackMessage: string) => {
+    try {
+      setAdminError(undefined)
+      const next = await request
+      setRoom(next)
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : fallbackMessage
+      setAdminError(message)
+    }
+  }
+
+  const onAdminPause = () => applyAdminUpdate(adminPauseRoom(roomCode), 'Không thể tạm dừng trò chơi')
+  const onAdminResume = () => applyAdminUpdate(adminResumeRoom(roomCode), 'Không thể tiếp tục trò chơi')
+  const onAdminEnd = () => applyAdminUpdate(adminEndRoom(roomCode), 'Không thể kết thúc trò chơi')
+  const onAdminSkipQuestion = () => applyAdminUpdate(adminSkipQuestion(roomCode), 'Không thể bỏ qua câu hỏi')
+  const onAdminSkipTurn = (targetId?: string) => applyAdminUpdate(adminSkipTurn(roomCode, targetId), 'Không thể bỏ lượt chơi')
+  const onAdminResetBell = (targetId: string) => applyAdminUpdate(adminResetBell(roomCode, targetId), 'Không thể reset lượt nhấn chuông')
+  const onAdminKick = (targetId: string) => applyAdminUpdate(adminKickPlayer(roomCode, targetId), 'Không thể kích người chơi')
+
   const isBellOwner = Boolean(playerId && activeBellPlayerId === playerId)
 
   return (
     <AppShell
       title={`Phòng chơi ${roomCode}`}
-      subtitle="Lối chơi theo lượt thời gian thực qua sự kiện STOMP."
       roomCode={roomCode}
       phase="Đang chơi"
       role={isObserver ? 'Quản trị quan sát' : isMyTurn ? 'Đến lượt bạn' : 'Đang chờ lượt'}
@@ -520,6 +557,84 @@ interface CompletedRoundInfo {
             <p className="rounded-lg border border-yellow-500/20 bg-red-900/60 p-3 text-sm text-yellow-100">
               Quản trị ở chế độ quan sát: bạn có thể theo dõi trận đấu nhưng không tham gia lượt chơi.
             </p>
+          ) : null}
+
+          {isPaused ? (
+            <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-sm font-semibold text-amber-100">
+              Trò chơi đang tạm dừng. Người chơi sẽ không thể thao tác cho đến khi quản trị tiếp tục.
+            </div>
+          ) : null}
+
+          {isHost ? (
+            <div className="rounded-2xl border border-yellow-500/30 bg-red-950/60 p-4 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={isPaused ? onAdminResume : onAdminPause}
+                  className="rounded-lg border border-amber-400/60 bg-amber-500/15 px-3 py-2 text-xs font-bold uppercase tracking-wider text-amber-100 hover:bg-amber-500/25"
+                >
+                  {isPaused ? 'Tiếp tục' : 'Tạm dừng'}
+                </button>
+                <button
+                  type="button"
+                  onClick={onAdminSkipQuestion}
+                  className="rounded-lg border border-yellow-400/60 bg-yellow-500/15 px-3 py-2 text-xs font-bold uppercase tracking-wider text-yellow-100 hover:bg-yellow-500/25"
+                >
+                  Bỏ qua câu hỏi
+                </button>
+                <button
+                  type="button"
+                  onClick={onAdminEnd}
+                  className="rounded-lg border border-red-500/70 bg-red-600/80 px-3 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-red-500"
+                >
+                  Kết thúc sớm
+                </button>
+              </div>
+
+              {adminError ? (
+                <p className="rounded-lg border border-orange-500/50 bg-orange-500/20 p-3 text-xs font-bold text-orange-200">{adminError}</p>
+              ) : null}
+
+              {room ? (
+                <PlayerList
+                  players={room.players}
+                  currentTurnPlayerId={activeTurnPlayerId}
+                  renderActions={(player) => {
+                    const isCurrent = activeTurnPlayerId === player.id
+                    const canResetBell = activeBellPlayerId === player.id || bellUsedPlayerIds.includes(player.id)
+                    const disableKick = playerId ? player.id === playerId : false
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onAdminSkipTurn(player.id)}
+                          disabled={!isCurrent}
+                          className="rounded-md border border-yellow-400/60 bg-yellow-500/15 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-yellow-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Bỏ lượt
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onAdminResetBell(player.id)}
+                          disabled={!canResetBell}
+                          className="rounded-md border border-amber-400/60 bg-amber-500/15 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Reset chuông
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onAdminKick(player.id)}
+                          disabled={disableKick}
+                          className="rounded-md border border-red-500/70 bg-red-600/80 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Kick
+                        </button>
+                      </>
+                    )
+                  }}
+                />
+              ) : null}
+            </div>
           ) : null}
 
           <div className="grid gap-3 rounded-2xl border border-yellow-400/40 bg-red-900/60 p-5 text-center text-yellow-100 shadow-[0_0_20px_rgba(251,191,36,0.22)]">
@@ -787,7 +902,15 @@ interface CompletedRoundInfo {
 
             <div className="p-4 bg-yellow-500/10 border border-yellow-400/20 rounded-2xl">
               <p className="text-sm font-medium text-yellow-100">
-                Chúc mừng <span className="font-extrabold text-yellow-300 text-base">{completedRound.winnerNickname}</span> đã xuất sắc chốt đáp án chính xác!
+                {completedRound.reason === 'ADMIN_SKIP_QUESTION'
+                  ? 'Quản trị đã bỏ qua câu hỏi này.'
+                  : (
+                      <>
+                        Chúc mừng{' '}
+                        <span className="font-extrabold text-yellow-300 text-base">{completedRound.winnerNickname}</span>
+                        {' '}đã xuất sắc chốt đáp án chính xác!
+                      </>
+                    )}
               </p>
             </div>
 

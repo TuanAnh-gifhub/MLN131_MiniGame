@@ -1,5 +1,6 @@
 package com.antidev.minigame_be.room.dto;
 
+import com.antidev.minigame_be.domain.GameSessionStatus;
 import com.antidev.minigame_be.domain.RoomStatus;
 
 import java.time.Instant;
@@ -11,6 +12,7 @@ public record RoomView(
     String code,
     String hostNickname,
     RoomStatus status,
+    GameSessionStatus gameStatus,
     List<PlayerView> players,
     UUID currentTurnPlayerId,
     Integer currentRound,

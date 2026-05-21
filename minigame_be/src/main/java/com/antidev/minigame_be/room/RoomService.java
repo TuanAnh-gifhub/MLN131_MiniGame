@@ -105,6 +105,7 @@ public class RoomService {
             room.getCode(),
             room.getHostNickname(),
             room.getStatus(),
+            latest != null ? latest.getStatus() : null,
             players,
             latest != null ? latest.getCurrentTurnPlayerId() : null,
             latest != null ? latest.getCurrentRound() : null,
@@ -154,6 +155,48 @@ public class RoomService {
         gameEngineService.initializeFirstRound(session);
         gameSessionRepository.save(session);
 
+        return getRoom(roomCode);
+    }
+
+    @Transactional
+    public RoomView pauseGame(String roomCode) {
+        gameEngineService.pauseGame(roomCode);
+        return getRoom(roomCode);
+    }
+
+    @Transactional
+    public RoomView resumeGame(String roomCode) {
+        gameEngineService.resumeGame(roomCode);
+        return getRoom(roomCode);
+    }
+
+    @Transactional
+    public RoomView endGameEarly(String roomCode) {
+        gameEngineService.adminEndGame(roomCode, "ADMIN_END");
+        return getRoom(roomCode);
+    }
+
+    @Transactional
+    public RoomView skipQuestion(String roomCode) {
+        gameEngineService.adminSkipQuestion(roomCode);
+        return getRoom(roomCode);
+    }
+
+    @Transactional
+    public RoomView skipTurn(String roomCode, UUID playerId) {
+        gameEngineService.adminSkipTurn(roomCode, playerId);
+        return getRoom(roomCode);
+    }
+
+    @Transactional
+    public RoomView resetBell(String roomCode, UUID playerId) {
+        gameEngineService.adminResetBell(roomCode, playerId);
+        return getRoom(roomCode);
+    }
+
+    @Transactional
+    public RoomView kickPlayer(String roomCode, UUID playerId) {
+        gameEngineService.adminKickPlayer(roomCode, playerId);
         return getRoom(roomCode);
     }
 
@@ -230,6 +273,4 @@ public class RoomService {
             .collect(Collectors.toList());
     }
 }
-
-
 

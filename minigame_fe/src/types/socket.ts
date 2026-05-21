@@ -9,6 +9,13 @@ export type GameEventType =
   | 'GAME_UPDATE'
   | 'ROUND_END'
   | 'GAME_END'
+  | 'ADMIN_PAUSE'
+  | 'ADMIN_RESUME'
+  | 'ADMIN_END'
+  | 'ADMIN_SKIP_TURN'
+  | 'ADMIN_SKIP_QUESTION'
+  | 'ADMIN_RESET_BELL'
+  | 'ADMIN_KICK_PLAYER'
 
 export interface GameInboundMessage {
   eventType: GameEventType
@@ -28,6 +35,11 @@ export interface GameOutboundMessage {
     reason?: string
     currentRound?: number
     totalRounds?: number
+    targetPlayerId?: string
+    targetNickname?: string
+    winnerId?: string
+    winnerNickname?: string
+    actorNickname?: string
     [key: string]: unknown
   }
   serverTime: string

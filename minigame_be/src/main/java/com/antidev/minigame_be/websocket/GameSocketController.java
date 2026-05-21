@@ -22,6 +22,9 @@ public class GameSocketController {
 
     @MessageMapping("/rooms/{roomCode}/event")
     public void handleEvent(@DestinationVariable String roomCode, @Valid GameInboundMessage message) {
+        if (message.eventType().name().startsWith("ADMIN_")) {
+            return;
+        }
         if (message.eventType() == GameEventType.GUESS_LETTER
             || message.eventType() == GameEventType.GUESS_ANSWER
             || message.eventType() == GameEventType.RING_BELL) {

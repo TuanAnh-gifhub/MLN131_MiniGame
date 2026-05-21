@@ -11,6 +11,8 @@ import java.util.UUID;
 public interface GameSessionRepository extends JpaRepository<GameSession, UUID> {
     Optional<GameSession> findFirstByRoomCodeAndStatusOrderByStartedAtDesc(String roomCode, GameSessionStatus status);
 
+    Optional<GameSession> findFirstByRoomCodeAndStatusInOrderByStartedAtDesc(String roomCode, List<GameSessionStatus> statuses);
+
     Optional<GameSession> findFirstByRoomCodeOrderByStartedAtDesc(String roomCode);
 
     List<GameSession> findByStatus(GameSessionStatus status);

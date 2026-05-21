@@ -1,11 +1,13 @@
 import type { PlayerView } from '../types/room'
+import type { ReactNode } from 'react'
 
 interface PlayerListProps {
   players: PlayerView[]
   currentTurnPlayerId?: string
+  renderActions?: (player: PlayerView) => ReactNode
 }
 
-export function PlayerList({ players, currentTurnPlayerId }: PlayerListProps) {
+export function PlayerList({ players, currentTurnPlayerId, renderActions }: PlayerListProps) {
   return (
     <ul className="grid gap-2">
       {players.map((player, index) => {
@@ -46,9 +48,12 @@ export function PlayerList({ players, currentTurnPlayerId }: PlayerListProps) {
                   ) : null}
                 </div>
               </div>
-              <span className="text-base font-black text-yellow-400 drop-shadow-sm flex items-center gap-1 shrink-0">
-                {player.score} <span className="text-[10px] font-bold text-yellow-500 uppercase tracking-wide">Điểm</span>
-              </span>
+              <div className="flex items-center gap-3">
+                {renderActions ? <div className="flex items-center gap-2 flex-wrap">{renderActions(player)}</div> : null}
+                <span className="text-base font-black text-yellow-400 drop-shadow-sm flex items-center gap-1 shrink-0">
+                  {player.score} <span className="text-[10px] font-bold text-yellow-500 uppercase tracking-wide">Điểm</span>
+                </span>
+              </div>
             </div>
           </li>
         )
@@ -56,4 +61,3 @@ export function PlayerList({ players, currentTurnPlayerId }: PlayerListProps) {
     </ul>
   )
 }
-
