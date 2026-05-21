@@ -232,8 +232,8 @@ interface CompletedRoundInfo {
       }
 
       if (hasNotice) {
-        // Delay opening the popup by 2.6 seconds so player can see the notification overlay
-        openTimerRef.current = window.setTimeout(openPopup, 2600)
+        // Delay opening the popup by 8 seconds so player can see the notification overlay
+        openTimerRef.current = window.setTimeout(openPopup, 8000)
       } else {
         openPopup()
       }
@@ -281,27 +281,27 @@ interface CompletedRoundInfo {
 
     if (latest.eventType === 'RING_BELL') {
       nextNotice = {
-        text: `🔔 ${latest.actor} vừa nhấn chuông đoán đáp án`,
+        text: `Người chơi: ${latest.actor} vừa nhấn chuông đoán đáp án`,
         tone: 'info',
       }
     } else if (latest.eventType === 'GAME_UPDATE' && reason === 'CORRECT_LETTER') {
       nextNotice = {
-        text: `✅ ${actorLabel} đoán đúng chữ cái`,
+        text: `Người chơi: ${actorLabel} đoán đúng chữ cái`,
         tone: 'ok',
       }
     } else if (latest.eventType === 'GAME_UPDATE' && reason === 'WRONG_LETTER') {
       nextNotice = {
-        text: `❌ ${actorLabel} đoán sai chữ cái`,
+        text: `Người chơi: ${actorLabel} đoán sai chữ cái`,
         tone: 'warn',
       }
     } else if (latest.eventType === 'GAME_UPDATE' && reason === 'WRONG_ANSWER_RESET_SCORE') {
       nextNotice = {
-        text: `❌ ${actorLabel} đoán đáp án sai và bị về 0 điểm`,
+        text: `Người chơi: ${actorLabel} đoán đáp án sai và bị về 0 điểm`,
         tone: 'warn',
       }
     } else if (latest.eventType === 'ROUND_END') {
       nextNotice = {
-        text: `🎉 ${(winnerNickname ?? actorLabel) === 'system' ? 'Có người' : winnerNickname ?? actorLabel} đã chốt đáp án đúng`,
+        text: `${(winnerNickname ?? actorLabel) === 'system' ? 'Có người' : `Người chơi: ${winnerNickname ?? actorLabel}`} đã chốt đáp án đúng`,
         tone: 'ok',
       }
 
@@ -328,12 +328,12 @@ interface CompletedRoundInfo {
       }, 8000)
     } else if (latest.eventType === 'GAME_UPDATE' && reason === 'BANKRUPT') {
       nextNotice = {
-        text: `💥 ${actorLabel} quay vào ô Phá sản và bị mất hết điểm!`,
+        text: `Người chơi: ${actorLabel} quay vào ô Phá sản và bị mất hết điểm!`,
         tone: 'warn',
       }
     } else if (latest.eventType === 'GAME_UPDATE' && reason === 'LOSE_TURN') {
       nextNotice = {
-        text: `💨 ${actorLabel} quay vào ô Mất lượt!`,
+        text: `Người chơi: ${actorLabel} quay vào ô Mất lượt!`,
         tone: 'warn',
       }
     }
@@ -355,14 +355,14 @@ interface CompletedRoundInfo {
         noticeTimerRef.current = window.setTimeout(() => {
           setLiveNotice(undefined)
           noticeTimerRef.current = null
-        }, 2600)
+        }, 8000)
       }, 2600)
     } else {
       setLiveNotice(nextNotice)
       noticeTimerRef.current = window.setTimeout(() => {
         setLiveNotice(undefined)
         noticeTimerRef.current = null
-      }, 2600)
+      }, 8000)
     }
   }, [feed])
 
@@ -468,7 +468,7 @@ interface CompletedRoundInfo {
       {liveNotice ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-red-950/40 backdrop-blur-sm px-4">
           <div
-            className={`rounded-2xl border-2 px-8 py-6 text-center text-xl font-extrabold shadow-2xl animate-in zoom-in duration-300 max-w-md w-full ${
+            className={`flex flex-col gap-5 rounded-3xl border-2 p-6 shadow-2xl animate-in zoom-in duration-300 max-w-lg w-full ${
               liveNotice.tone === 'ok'
                 ? 'border-yellow-400/80 bg-yellow-950/95 text-yellow-100 shadow-[0_0_30px_rgba(251,191,36,0.3)]'
                 : liveNotice.tone === 'warn'
@@ -476,7 +476,40 @@ interface CompletedRoundInfo {
                   : 'border-amber-400/80 bg-amber-950/95 text-amber-100 shadow-[0_0_30px_rgba(245,158,11,0.3)]'
             }`}
           >
-            {liveNotice.text}
+            <div className="text-center text-2xl font-extrabold">{liveNotice.text}</div>
+
+            <div className="rounded-2xl border border-white/20 bg-black/20 p-5 text-left shadow-inner">
+              <p className="mb-3 text-sm font-bold uppercase tracking-wider text-yellow-300/80 border-b border-white/10 pb-2">
+                {questionLabel}
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-bold uppercase text-yellow-100/60 mb-1">Câu hỏi:</p>
+                  <p className="text-lg font-semibold leading-snug">{room?.clue ?? 'Đang chờ câu hỏi...'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase text-yellow-100/60 mb-2">Đáp án:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {answerSlots.length > 0 ? (
+                      answerSlots.map((char, index) => (
+                        <span
+                          key={`${char}-${index}`}
+                          className={`grid h-10 w-9 place-items-center rounded-lg border text-base font-extrabold uppercase shadow-sm ${
+                            char === ' '
+                              ? 'border-transparent bg-transparent'
+                              : 'border-yellow-200/40 bg-black/40 text-yellow-100'
+                          }`}
+                        >
+                          {char === ' ' ? '' : char}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-yellow-200/80">--</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
