@@ -10,6 +10,9 @@ import { useGameStore } from '../store/useGameStore'
 import { useRoomStore } from '../store/useRoomStore'
 import { useSessionStore } from '../store/useSessionStore'
 import type { RoomView } from '../types/room'
+import { useSpinAudioStore } from '../store/useSpinAudioStore'
+import countdownSpotlightMusic from '../assets/Countdown Spotlight.mp3'
+
 const GAME_ALPHABET = 'ABCDEFGHIKLMNOPQRSTUVXY'
 const TURN_TIMEOUT_SECONDS = 60
 const SPIN_OUTCOMES = [100, 200, 300, 400, 500, 600, 700, 800, 0, -1]
@@ -57,6 +60,8 @@ interface CompletedRoundInfo {
   const [wheelSpinning, setWheelSpinning] = useState(false)
   const [wheelResult, setWheelResult] = useState<number | null>(null)
   const [showWheelPopup, setShowWheelPopup] = useState(false)
+  const spinVolume = useSpinAudioStore((s) => s.volume)
+  const spinMuted = useSpinAudioStore((s) => s.muted)
   const [liveNotice, setLiveNotice] = useState<LiveNotice>()
   const [isAdminNoticeMinimized, setIsAdminNoticeMinimized] = useState(false)
   const [isAdminWheelMinimized, setIsAdminWheelMinimized] = useState(false)
@@ -64,6 +69,31 @@ interface CompletedRoundInfo {
   const closeTimerRef = useRef<number | null>(null)
   const openTimerRef = useRef<number | null>(null)
   const noticeTimerRef = useRef<number | null>(null)
+  const countdownAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    if (wheelSpinning && countdownAudioRef.current) {
+      try {
+        countdownAudioRef.current.currentTime = 0
+      } catch (e) {}
+      countdownAudioRef.current.play().catch(() => {})
+    }
+  }, [wheelSpinning])
+
+  useEffect(() => {
+    if (countdownAudioRef.current) {
+      countdownAudioRef.current.volume = spinMuted ? 0 : spinVolume
+    }
+  }, [spinVolume, spinMuted])
+
+  useEffect(() => {
+    if (!showWheelPopup && countdownAudioRef.current) {
+      try {
+        countdownAudioRef.current.pause()
+        countdownAudioRef.current.currentTime = 0
+      } catch (e) {}
+    }
+  }, [showWheelPopup])
 
   useRealtimeRoom(roomCode)
   useRoomPolling(roomCode, true)
@@ -209,7 +239,7 @@ interface CompletedRoundInfo {
         }
         closeTimerRef.current = null
       }, 2000)
-    }, 2600)
+    }, 5000)
   }, [feed])
 
   // Open the wheel popup when spin is required on a new turn
@@ -382,14 +412,14 @@ interface CompletedRoundInfo {
     const isBankruptOrLoseTurn = reason === 'BANKRUPT' || reason === 'LOSE_TURN'
 
     if (isBankruptOrLoseTurn) {
-      // Delay showing the notice until the spin animation completes (2.6 seconds)
+      // Delay showing the notice until the spin animation completes (5 seconds)
       noticeTimerRef.current = window.setTimeout(() => {
         setLiveNotice(nextNotice)
         noticeTimerRef.current = window.setTimeout(() => {
           setLiveNotice(undefined)
           noticeTimerRef.current = null
         }, 8000)
-      }, 2600)
+      }, 5000)
     } else {
       setLiveNotice(nextNotice)
       noticeTimerRef.current = window.setTimeout(() => {
@@ -445,6 +475,13 @@ interface CompletedRoundInfo {
   const onSpinWheel = () => {
     if (!canPlay) {
       return
+    }
+
+    if (countdownAudioRef.current) {
+      try {
+        countdownAudioRef.current.currentTime = 0
+      } catch (e) {}
+      countdownAudioRef.current.play().catch(() => {})
     }
 
     socketClient.publish(roomCode, {
@@ -895,7 +932,7 @@ interface CompletedRoundInfo {
                       className="h-full w-full rounded-full border-4 border-yellow-300/80 shadow-[0_0_20px_rgba(251,191,36,0.4)]"
                       style={{
                         transform: `rotate(${wheelRotation}deg)`,
-                        transition: wheelSpinning ? 'transform 2.6s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none',
+                        transition: wheelSpinning ? 'transform 5s cubic-bezier(0.1, 0.9, 0.2, 1)' : 'none',
                         background:
                           'conic-gradient(#facc15 0deg 36deg, #f59e0b 36deg 72deg, #f97316 72deg 108deg, #ef4444 108deg 144deg, #b91c1c 144deg 180deg, #fbbf24 180deg 216deg, #fde047 216deg 252deg, #ea580c 252deg 288deg, #7f1d1d 288deg 324deg, #991b1b 324deg 360deg)',
                       }}
@@ -981,7 +1018,7 @@ interface CompletedRoundInfo {
                   className="h-full w-full rounded-full border-4 border-yellow-300/80 shadow-[0_0_25px_rgba(251,191,36,0.4)]"
                   style={{
                     transform: `rotate(${wheelRotation}deg)`,
-                    transition: wheelSpinning ? 'transform 2.6s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none',
+                    transition: wheelSpinning ? 'transform 5s cubic-bezier(0.1, 0.9, 0.2, 1)' : 'none',
                     background:
                       'conic-gradient(#facc15 0deg 36deg, #f59e0b 36deg 72deg, #f97316 72deg 108deg, #ef4444 108deg 144deg, #b91c1c 144deg 180deg, #fbbf24 180deg 216deg, #fde047 216deg 252deg, #ea580c 252deg 288deg, #7f1d1d 288deg 324deg, #991b1b 324deg 360deg)',
                   }}
@@ -1171,6 +1208,8 @@ interface CompletedRoundInfo {
           </div>
         )
       ) : null}
+      
+      <audio ref={countdownAudioRef} src={countdownSpotlightMusic} className="hidden" preload="auto" />
     </AppShell>
   )
 }
