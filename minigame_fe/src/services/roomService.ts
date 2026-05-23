@@ -1,5 +1,32 @@
 import type { AdminCreateRoomInput, RoomView } from '../types/room'
+import type { QuestionSetDetail, QuestionSetSummary } from '../types/questionSet'
 import { apiRequest } from './apiClient'
+
+// ── Question Sets ─────────────────────────────────────────────────────────────
+
+export function getQuestionSets(): Promise<QuestionSetSummary[]> {
+  return apiRequest<QuestionSetSummary[]>('/api/v1/admin/question-sets')
+}
+
+export function getQuestionSet(id: string): Promise<QuestionSetDetail> {
+  return apiRequest<QuestionSetDetail>(`/api/v1/admin/question-sets/${id}`)
+}
+
+export function saveQuestionSet(
+  name: string,
+  questions: { category: string; clue: string; answer: string }[],
+): Promise<QuestionSetDetail> {
+  return apiRequest<QuestionSetDetail>('/api/v1/admin/question-sets', {
+    method: 'POST',
+    body: JSON.stringify({ name, questions }),
+  })
+}
+
+export function deleteQuestionSet(id: string): Promise<void> {
+  return apiRequest<void>(`/api/v1/admin/question-sets/${id}`, {
+    method: 'DELETE',
+  })
+}
 
 export function createRoom(hostNickname: string): Promise<RoomView> {
   return apiRequest<RoomView>('/api/v1/rooms', {
