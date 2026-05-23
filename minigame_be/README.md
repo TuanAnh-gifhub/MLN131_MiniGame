@@ -55,3 +55,28 @@ Set-Location "D:\FPT\SPRING_3W_2026\MLN131_3W\MiniGame\minigame_be"
 - Rate limiting filter via Redis
 - Docker, Nginx, CI/CD pipeline, frontend integration
 
+## Docker
+
+Build the image:
+
+```powershell
+Set-Location "C:\Users\Acer\Downloads\MLN131\MLN131_MiniGame\minigame_be"
+docker build -t <dockerhub-username>/minigame-be:0.0.1 .
+```
+
+Run the container (example uses SQL Server settings via env vars):
+
+```powershell
+docker run --rm -p 8080:8080 `
+  -e SPRING_DATASOURCE_URL="jdbc:sqlserver://<host>:1433;databaseName=<db>;encrypt=true;trustServerCertificate=true" `
+  -e SPRING_DATASOURCE_USERNAME="<user>" `
+  -e SPRING_DATASOURCE_PASSWORD="<password>" `
+  <dockerhub-username>/minigame-be:0.0.1
+```
+
+Push to Docker Hub:
+
+```powershell
+docker login
+docker push <dockerhub-username>/minigame-be:0.0.1
+```

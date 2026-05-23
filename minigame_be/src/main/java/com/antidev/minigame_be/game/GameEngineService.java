@@ -274,7 +274,8 @@ public class GameEngineService {
     }
 
     private void initializeRound(GameSession session, int roundNumber) {
-        Question question = randomQuestion(session.getRoom().getCode());
+        String previousAnswer = session.getCurrentAnswer();
+        Question question = randomQuestion(session.getRoom().getCode(), previousAnswer);
         String answer = question.getAnswer().trim().toUpperCase(Locale.ROOT);
         session.setCurrentRound(roundNumber);
         session.setCurrentClue(question.getClue());
@@ -285,6 +286,32 @@ public class GameEngineService {
         session.setSpinRequired(true);
         session.setActiveBellPlayerId(null);
         session.setBellUsedPlayerIds("");
+    }
+
+    private Question randomQuestion(String roomCode, String excludeAnswer) {
+        List<Question> active = questionRepository.findByActiveTrueAndRoomCode(roomCode);
+        if (active.isEmpty()) {
+            active = questionRepository.findByActiveTrueAndRoomCodeIsNull();
+        }
+        if (active.isEmpty()) {
+            Question fallback = new Question();
+            fallback.setCategory("default");
+            fallback.setClue("Ten mot loai dong vat");
+            fallback.setAnswer("CON MEO");
+            fallback.setActive(true);
+            return fallback;
+        }
+
+        String normalizedExclude = excludeAnswer == null ? null : normalizeAnswer(excludeAnswer);
+        if (normalizedExclude != null && active.size() > 1) {
+            List<Question> filtered = active.stream()
+                .filter(q -> !normalizeAnswer(q.getAnswer()).equals(normalizedExclude))
+                .toList();
+            if (!filtered.isEmpty()) {
+                active = filtered;
+            }
+        }
+        return active.get(ThreadLocalRandom.current().nextInt(active.size()));
     }
 
     private void endGame(GameSession session, Instant now, Player winner, String reason) {
@@ -393,21 +420,6 @@ public class GameEngineService {
         return outcomes[ThreadLocalRandom.current().nextInt(outcomes.length)];
     }
 
-    private Question randomQuestion(String roomCode) {
-        List<Question> active = questionRepository.findByActiveTrueAndRoomCode(roomCode);
-        if (active.isEmpty()) {
-            active = questionRepository.findByActiveTrueAndRoomCodeIsNull();
-        }
-        if (active.isEmpty()) {
-            Question fallback = new Question();
-            fallback.setCategory("default");
-            fallback.setClue("Ten mot loai dong vat");
-            fallback.setAnswer("CON MEO");
-            fallback.setActive(true);
-            return fallback;
-        }
-        return active.get(ThreadLocalRandom.current().nextInt(active.size()));
-    }
 
     private Set<Character> readUsedLetters(String usedLetters) {
         Set<Character> result = new LinkedHashSet<>();

@@ -48,7 +48,7 @@ public class GameSession {
     @Column(name = "current_round", nullable = false)
     private int currentRound = 1;
 
-    @Column(name = "current_clue", length = 300)
+    @Column(name = "current_clue", length = 300, columnDefinition = "nvarchar(300)")
     private String currentClue;
 
     @Column(name = "current_answer", length = 200)
@@ -81,5 +81,3 @@ public class GameSession {
     @Column(name = "ended_at")
     private Instant endedAt;
 }
-
-

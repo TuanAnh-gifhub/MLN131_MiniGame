@@ -33,7 +33,7 @@ public class Player {
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
-    @Column(nullable = false, length = 30)
+    @Column(nullable = false, length = 30, columnDefinition = "nvarchar(30)")
     private String nickname;
 
     @Column(nullable = false)
@@ -51,4 +51,3 @@ public class Player {
     @Column(name = "joined_at", nullable = false)
     private Instant joinedAt = Instant.now();
 }
-

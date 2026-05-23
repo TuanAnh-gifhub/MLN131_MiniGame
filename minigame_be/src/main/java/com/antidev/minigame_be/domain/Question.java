@@ -28,7 +28,7 @@ public class Question {
     @Column(nullable = false, length = 100)
     private String category;
 
-    @Column(nullable = false, length = 300)
+    @Column(nullable = false, length = 300, columnDefinition = "nvarchar(300)")
     private String clue;
 
     @Column(nullable = false, length = 200)
@@ -40,4 +40,3 @@ public class Question {
     @Column(nullable = false)
     private boolean active = true;
 }
-

@@ -70,6 +70,8 @@ interface CompletedRoundInfo {
   const openTimerRef = useRef<number | null>(null)
   const noticeTimerRef = useRef<number | null>(null)
   const countdownAudioRef = useRef<HTMLAudioElement | null>(null)
+  const bellRequestTimerRef = useRef<number | null>(null)
+  const [bellRequesting, setBellRequesting] = useState(false)
 
   useEffect(() => {
     if (wheelSpinning && countdownAudioRef.current) {
@@ -129,7 +131,7 @@ interface CompletedRoundInfo {
   const isMyTurn = activeTurnPlayerId && playerId ? activeTurnPlayerId === playerId : false
   const isObserver = isHost && !playerId
   const isPaused = room?.gameStatus === 'PAUSED'
-  const canPlay = Boolean(playerId) && Boolean(isConnected) && isMyTurn && !isPaused
+  const canPlay = Boolean(playerId) && Boolean(isConnected) && isMyTurn && !isPaused && !activeBellPlayerId
   const bellUsedByMe = Boolean(playerId && bellUsedPlayerIds.includes(playerId))
   const canRingBell = Boolean(playerId) && Boolean(isConnected) && !wheelSpinning && !activeBellPlayerId && !bellUsedByMe && !isPaused
 
@@ -245,11 +247,13 @@ interface CompletedRoundInfo {
   // Open the wheel popup when spin is required on a new turn
   useEffect(() => {
     if (room?.spinRequired && activeTurnPlayerId) {
+      if (activeBellPlayerId || bellRequesting) {
+        return
+      }
       // If a completed round board is active, wait until it finishes
       if (completedRound !== null) {
         return
       }
-
       // If a spin is already in progress or displaying its result,
       // let it finish and transition naturally.
       if (wheelSpinning || closeTimerRef.current !== null) {
@@ -293,7 +297,7 @@ interface CompletedRoundInfo {
         openPopup()
       }
     }
-  }, [room?.spinRequired, activeTurnPlayerId, wheelSpinning, completedRound])
+  }, [room?.spinRequired, activeTurnPlayerId, wheelSpinning, completedRound, activeBellPlayerId, bellRequesting])
 
   useEffect(() => {
     return () => {
@@ -312,6 +316,9 @@ interface CompletedRoundInfo {
       if (completedRoundTimerRef.current !== null) {
         window.clearTimeout(completedRoundTimerRef.current)
       }
+      if (bellRequestTimerRef.current !== null) {
+        window.clearTimeout(bellRequestTimerRef.current)
+      }
     }
   }, [])
 
@@ -321,6 +328,14 @@ interface CompletedRoundInfo {
     }
     setFullAnswer('')
   }, [activeBellPlayerId, playerId])
+
+  useEffect(() => {
+    if (activeBellPlayerId) {
+      setShowWheelPopup(false)
+      setWheelResult(null)
+      setBellRequesting(false)
+    }
+  }, [activeBellPlayerId])
 
   useEffect(() => {
     const latest = feed[0]
@@ -367,7 +382,7 @@ interface CompletedRoundInfo {
           }
 
       // Capture and show completed round board
-      const answer = latest.payload?.answer ?? ''
+      const answer = typeof latest.payload?.answer === 'string' ? latest.payload.answer : ''
       const roundNumber = latest.payload?.currentRound ?? room?.currentRound ?? 1
       const totalRounds = latest.payload?.totalRounds ?? room?.totalRounds ?? 1
       const clue = room?.clue ?? ''
@@ -507,6 +522,10 @@ interface CompletedRoundInfo {
     if (!canRingBell) {
       return
     }
+
+    setBellRequesting(true)
+    setShowWheelPopup(false)
+    setWheelResult(null)
 
     socketClient.publish(roomCode, {
       eventType: 'RING_BELL',
@@ -876,7 +895,7 @@ interface CompletedRoundInfo {
         </div>
       ) : null}
 
-      {showWheelPopup ? (
+      {showWheelPopup && !isBellOwner && !bellRequesting ? (
         isObserver ? (
           <div className="fixed bottom-4 right-4 z-50 w-full max-w-sm">
             <div className="w-full rounded-3xl border-2 border-yellow-500/40 bg-gradient-to-b from-red-900 to-red-950 p-5 text-center shadow-[0_0_40px_rgba(251,191,36,0.25)] space-y-4 relative overflow-hidden">
